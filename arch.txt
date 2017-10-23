@@ -1,0 +1,218 @@
+
+
+::Namer
+	+ name(str name)
+
+::Influencer
+	+ influence(Entity target)
+
+::Scholar
+	+ teach(KnowledgeDomain domain, Scholar student)
+	+ learn(Scholar teacher)
+	+ experiment(KnowledgeDomain domain)
+
+::Freight
+	+ load(Container container)
+	+ unload()
+
+::Mixed
+	+ separate(Atom atom, int quantity) -> Resource
+	+ mix(Resource resource) -> Resource
+
+::Multiple
+	+ split(int quantity) -> Multiple
+
+::Mover
+	+ move(Wormhole wormhole)
+
+::Container
+	+ load(Freight freight)
+	+ unload(Freight freight)
+
+::Attacker
+	+ attack(Defender defender)
+
+::Defender
+	+ defend() -> int
+
+::Builder
+	+ build(Resource bom, int energy_build, int sturdiness, int attack, int movement, int storage_volume, int energy_storage, int energy_harvesting) -> Construction
+
+
+
+Character: Influencer, Namer
+	1..1 str name
+	1..1 int power
+	1..1 int actions
+
+User
+	0..1 Character character
+	1..1 str email
+	1..1 password password
+	1..1 bool registered
+	1..1 bool game_master
+
+Registration
+	1..1 User user
+	1..1 DateTime valid_until
+	1..1 str token
+	1..1 status status # {generated, sent, error}
+
+Forum
+	1..1 str name
+	0..n Message messages
+
+Message
+	1..1 Character author
+	1..1 str text
+	0..1 Message parent
+
+Vote
+	1..1 Message message
+	1..1 Character voter
+
+Object:
+	1..1 Place place
+
+Matter
+	1..1 atom element
+	1..1 int quantity
+
+Resource: Mixed, Freight
+	1..1 Object object
+	1..n Matter components
+	1..1 int volume
+	1..1 int sturdiness
+
+Construction: Mover, Freight, Namer, Multiple, Defender, Container
+	1..1 Resource structure
+	0..n Freight content
+	1..n Matter biocompatibility
+	1..1 count
+	0..1 str name
+	1..1 int attack
+	1..1 int movement
+	1..1 int storage_volume
+	1..1 int energy_level
+	1..1 int energy_storage
+	1..1 int energy_harvesting
+
+Entity: Namer, Freight, Scholar, Influencer, Multiple, Defender, Attacker, Builder
+	1..1 Resource body
+	0..1 Character controller
+	0..n Knowledge knowledge
+	1..1 str name
+	1..1 count
+	1..1 int trust
+	1..1 int energy_level
+	1..1 int energy_storage
+	1..1 int energy_harvesting
+
+Knowledge
+	1..1 KnowledgeDomain domain
+	1..1 int proficiency
+
+KnowledgeDomain
+	0..n KnowledgeConstraint constraints
+	1..1 str name
+
+KnowledgeConstraint
+	1..1 KnowledgeDomain
+	1..1 int minimum_proficiency
+
+Place
+	0..n Resource
+	0..n Wormhole wormholes
+	1..1 str name
+	1..1 int energy_production
+
+Wormhole
+	1..1 Place source
+	1..1 Place destination
+	1..1 int distance
+
+Turn
+	1..1 int
+
+Order
+	1..1 Turn turn
+	1..1 Character character
+	1..1 int cost
+
+NameOrder
+	1..1 Order
+	1..1 Namer subject
+	1..1 str name
+
+InfluenceOrder
+	1..1 Order
+	1..1 Influencer influencer
+	1..1 Entity target
+
+TeachOrder
+	1..1 Order
+	1..1 Scholar teacher
+	1..1 KnowledgeDomain domain
+	1..1 Scholar student
+
+LearnOrder
+	1..1 Order
+	1..1 Scholar student
+	1..1 Scholar teacher
+
+ExperimentOrder
+	1..1 Order
+	1..1 Scholar student
+	1..1 KnowledgeDomain domain
+
+SeparateOrder
+	1..1 Order
+	1..1 Mixed subject
+	1..1 Atom atom
+	1..1 int quantity
+
+MixOrder
+	1..1 Order
+	1..1 Mixed subject
+	1..1 Mixed object
+
+SplitOrder
+	1..1 Order
+	1..1 Multiple subject
+	1..1 int quantity
+
+MoveOrder
+	1..1 Order
+	1..1 Mover subject
+	1..1 Wormhole wormhole
+
+LoadOrder
+	1..1 Order
+	1..1 Container container
+	1..1 Freight freight
+
+UnloadOrder
+	1..1 Order
+	1..1 Container container
+	1..1 Freight freight
+
+AttackOrder
+	1..1 Order
+	1..1 Attacker attacker
+	1..1 Defender defender
+
+BuildOrder
+	1..1 Order
+	1..1 Builder builder
+	1..1 Resource bom
+	1..1 int energy_build
+	1..1 int sturdiness
+	1..1 int attack
+	1..1 int movement
+	1..1 int storage_volume
+	1..1 int energy_storage
+	1..1 int energy_harvesting
+
+
+TODO:
+	Environment (survive)
