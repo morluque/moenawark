@@ -16,3 +16,6 @@ moenawark
 
 # vim files
 .*.swp
+
+# Vendor
+vendor/*/
