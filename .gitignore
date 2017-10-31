@@ -19,3 +19,6 @@ moenawark
 
 # Vendor
 vendor/*/
+
+# Moenawark db directory
+data/db/
