@@ -11,10 +11,16 @@
 			"versionExact": "v1.3.0"
 		},
 		{
-			"checksumSHA1": "dHh6VeHcbNg11miGjGEl8LbPe7w=",
-			"path": "golang.org/x/crypto/scrypt",
-			"revision": "2509b142fb2b797aa7587dad548f113b2c0f20ce",
-			"revisionTime": "2017-10-23T14:45:55Z"
+			"checksumSHA1": "UWjVYmoHlIfHzVIskELHiJQtMOI=",
+			"path": "golang.org/x/crypto/bcrypt",
+			"revision": "bd6f299fb381e4c3393d1c4b1f0b94f5e77650c8",
+			"revisionTime": "2017-10-31T10:16:35Z"
+		},
+		{
+			"checksumSHA1": "oVPHWesOmZ02vLq2fglGvf+AMgk=",
+			"path": "golang.org/x/crypto/blowfish",
+			"revision": "bd6f299fb381e4c3393d1c4b1f0b94f5e77650c8",
+			"revisionTime": "2017-10-31T10:16:35Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
