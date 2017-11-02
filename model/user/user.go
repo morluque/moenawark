@@ -131,7 +131,7 @@ func Load(db *sql.DB, email string) (*User, error) {
 		char, _ := character.LoadByID(db, characterID.Int64)
 		c = char
 	}
-	return &User{ID: id, Email: email, password: password, GameMaster: gameMaster, Character: c}, nil
+	return &User{ID: id, Email: email, password: password, Registered: registered, GameMaster: gameMaster, Character: c}, nil
 }
 
 // Auth loads a user from database if the email/password match.
