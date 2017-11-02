@@ -8,6 +8,6 @@ Turns occurs every weeks, with moves resolution normally occuring saturday eveni
 Emphasis is placed on roleplaying over game mechanics; more specifically, game mechanics should always support roleplaying.
 
 It is a work in progress: code is not finished. In fact, code does nothing interesting yet :-) .
-I'm developping it on my copious free time(tm), so expect rather slow progress...
+I'm developping it on my copious free time(tm), so expect rather slow progress... Also, this is my first Go project, so expect to see quite non-idiomatic Go code. Still learning!
 
 Technically, it is written in Go and uses SQLite as datastore.
