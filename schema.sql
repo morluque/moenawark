@@ -10,19 +10,11 @@ CREATE TABLE characters (
 
 CREATE TABLE users (
 	id INTEGER PRIMARY KEY NOT NULL,
-	email TEXT NOT NULL,
+	login TEXT NOT NULL,
 	password TEXT NOT NULL,
-	registered BOOLEAN NOT NULL DEFAULT false,
+	status INTEGER NOT NULL DEFAULT 0, -- new=0, active=1, archived=2
 	game_master BOOLEAN NOT NULL DEFAULT false,
 	character_id INTEGER DEFAULT NULL CONSTRAINT fk_user_char REFERENCES characters(id)
-);
-
-CREATE TABLE registrations (
-	user_id INTEGER NOT NULL CONSTRAINT fk_reg_user REFERENCES users(id),
-	valid_until INTEGER NOT NULL,
-	token TEXT NOT NULL,
-	status INTEGER NOT NULL DEFAULT 0, -- generated=0, sent=1, error=2
-	CONSTRAINT pk_registrations PRIMARY KEY (user_id)
 );
 
 
