@@ -8,7 +8,7 @@ import (
 // Open returns a new database connection.
 // Currently uses sqlite.
 func Open(dataSourceName string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "file:data/db/moenawark.sqlite")
+	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
