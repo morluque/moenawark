@@ -20,7 +20,7 @@ func Open(dataSourceName string) (*sql.DB, error) {
 	return db, nil
 }
 
-// IsConstraintError returns trus if err is a constraint violation error.
+// IsConstraintError returns true if err is a constraint violation error.
 func IsConstraintError(err error) bool {
 	if err == nil {
 		return false
