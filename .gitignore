@@ -22,3 +22,6 @@ vendor/*/
 
 # Moenawark db directory
 data/db/
+
+# TOML config files
+*.toml
