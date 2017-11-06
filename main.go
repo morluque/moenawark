@@ -11,20 +11,19 @@ import (
 )
 
 func main() {
-	var dbpath = flag.String("dbpath", "data/db/moenawark.sqlite", "path to DB file")
+	var dbPath = flag.String("dbpath", "data/db/moenawark.sqlite", "path to DB file")
 	flag.Parse()
-	dataSource := fmt.Sprintf("file:%s", *dbpath)
-	fmt.Printf("DB path: %s\n", dataSource)
+	fmt.Printf("DB path: %s\n", dbPath)
 
 	c := character.New("Foo", 10, 5)
 	u := user.New("foo@example.com", "secret")
-	u.Registered = true
+	u.Status = "active"
 	u.Character = c
 	if u.HasCharacter() {
 		fmt.Printf("c: %v\n", u.Character)
 	}
 
-	db, err := sqlstore.Open(dataSource)
+	db, err := sqlstore.Open(*dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}

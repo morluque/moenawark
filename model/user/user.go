@@ -14,7 +14,7 @@ type User struct {
 	Character  *character.Character `json:"character",omitempty`
 	Login      string               `json:"login"`
 	password   string               `json:""`
-	Registered bool                 `json:"registered"`
+	Status     string               `json:"status"`
 	GameMaster bool                 `json:"game_master"`
 }
 
@@ -25,7 +25,7 @@ will be hashed before storing into the struct.
 */
 func New(login string, plaintextPassword string) *User {
 	password := password.Encode(plaintextPassword)
-	return &User{Login: login, password: password, Registered: false, GameMaster: false}
+	return &User{Login: login, password: password, Status: "new", GameMaster: false}
 }
 
 /*
@@ -65,10 +65,10 @@ func (u *User) create(db *sql.DB) error {
 		u.Character.Save(db)
 	}
 	result, err := db.Exec(
-		"INSERT INTO users (login, password, registered, game_master, character_id) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO users (login, password, status, game_master, character_id) VALUES ($1, $2, $3, $4, $5)",
 		u.Login,
 		u.getHashedPassword(),
-		u.Registered,
+		u.Status,
 		u.GameMaster,
 		characterID)
 	if err == nil {
@@ -87,10 +87,10 @@ func (u *User) update(db *sql.DB) error {
 		u.Character.Save(db)
 	}
 	_, err := db.Exec(
-		"UPDATE users SET login = $1, password = $2, registered = $3, game_master = $4, character_id = $5",
+		"UPDATE users SET login = $1, password = $2, status = $3, game_master = $4, character_id = $5",
 		u.Login,
 		u.getHashedPassword(),
-		u.Registered,
+		u.Status,
 		u.GameMaster,
 		characterID)
 	return err
@@ -117,12 +117,12 @@ func (u *User) Save(db *sql.DB) error {
 // Load loads a user from database by its login.
 func Load(db *sql.DB, login string) (*User, error) {
 	var id int64
-	var password string
-	var registered, gameMaster bool
+	var password, status string
+	var gameMaster bool
 	var characterID sql.NullInt64
 
-	row := db.QueryRow("SELECT id, password, registered, game_master, character_id FROM users WHERE login = $1", login)
-	err := row.Scan(&id, &password, &registered, &gameMaster, &characterID)
+	row := db.QueryRow("SELECT id, password, status, game_master, character_id FROM users WHERE login = $1", login)
+	err := row.Scan(&id, &password, &status, &gameMaster, &characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func Load(db *sql.DB, login string) (*User, error) {
 		char, _ := character.LoadByID(db, characterID.Int64)
 		c = char
 	}
-	return &User{ID: id, Login: login, password: password, Registered: registered, GameMaster: gameMaster, Character: c}, nil
+	return &User{ID: id, Login: login, password: password, Status: status, GameMaster: gameMaster, Character: c}, nil
 }
 
 // Auth loads a user from database if the login/password match.
