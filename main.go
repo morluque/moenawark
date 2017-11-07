@@ -12,6 +12,20 @@ import (
 	"os"
 )
 
+func main() {
+	if len(os.Args) <= 1 {
+		log.Fatal("Missing first argument <action>")
+	}
+	action := os.Args[1]
+
+	switch action {
+	case "init":
+		initDB()
+	default:
+		log.Fatalf("Unknown action %s", action)
+	}
+}
+
 func readAdminUser() (*user.User, error) {
 	var login, password string
 	scanner := bufio.NewScanner(os.Stdin)
@@ -33,10 +47,11 @@ func readAdminUser() (*user.User, error) {
 	return u, nil
 }
 
-func main() {
-	var configPath = flag.String("cfg", "moenawark.toml", "path to TOML config file")
-	flag.Parse()
-	fmt.Printf("config path: %s\n", *configPath)
+func initDB() {
+	opts := flag.NewFlagSet("moenawark", flag.PanicOnError)
+	var configPath = opts.String("cfg", "moenawark.toml", "path to TOML config file")
+	opts.Parse(os.Args[2:])
+	log.Printf("config path: %s\n", *configPath)
 
 	conf, err := config.Parse(*configPath)
 	if err != nil {
@@ -53,6 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	if user.HasAdmin(db) {
 		log.Printf("One or more game masters registered in database\n")
@@ -73,5 +89,4 @@ func main() {
 		}
 		fmt.Printf("u: %s\n", data)
 	}
-	db.Close()
 }
