@@ -73,7 +73,7 @@ CREATE TABLE characters (
 
 CREATE TABLE users (
 	id INTEGER PRIMARY KEY NOT NULL,
-	login TEXT NOT NULL,
+	login TEXT NOT NULL UNIQUE,
 	password TEXT NOT NULL,
 	status TEXT NOT NULL DEFAULT 'new' CHECK (status in ('new', 'active', 'archived')),
 	game_master BOOLEAN NOT NULL DEFAULT false,

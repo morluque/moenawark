@@ -6,7 +6,8 @@ import (
 )
 
 type Config struct {
-	DBPath string `toml:"db_path"`
+	DBPath     string `toml:"db_path"`
+	AdminLogin string `toml:"admin_login"`
 }
 
 func Parse(path string) (*Config, error) {
