@@ -149,3 +149,14 @@ func Auth(db *sql.DB, login string, plaintextPassword string) (*User, error) {
 
 	return u, nil
 }
+
+func HasAdmin(db *sql.DB) bool {
+	var adminCount int
+	row := db.QueryRow("SELECT count(id) AS nbadmin FROM users WHERE game_master = 1")
+	err := row.Scan(&adminCount)
+	if err != nil {
+		return false
+	}
+
+	return adminCount > 0
+}

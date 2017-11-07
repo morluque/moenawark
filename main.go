@@ -54,17 +54,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var adminLogin string
-	if len(conf.AdminLogin) > 0 {
-		adminLogin = conf.AdminLogin
+	if user.HasAdmin(db) {
+		log.Printf("One or more game masters registered in database\n")
 	} else {
-		adminLogin = "admin"
-	}
-	log.Printf("Admin login is %s\n", adminLogin)
-	admin, err := user.Load(db, adminLogin)
-	if err != nil {
-		log.Print(err)
-		admin, err = readAdminUser()
+		log.Printf("No game masters registered in database, will create one.\n")
+		admin, err := readAdminUser()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,12 +66,12 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("Created admin user %s", admin.Login)
-	}
 
-	data, err := json.Marshal(admin)
-	if err != nil {
-		log.Fatal(err)
+		data, err := json.Marshal(admin)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("u: %s\n", data)
 	}
-	fmt.Printf("u: %s\n", data)
 	db.Close()
 }
