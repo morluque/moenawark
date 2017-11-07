@@ -150,6 +150,7 @@ func Auth(db *sql.DB, login string, plaintextPassword string) (*User, error) {
 	return u, nil
 }
 
+// HasAdmin returns true if at least one user in database is game master.
 func HasAdmin(db *sql.DB) bool {
 	var adminCount int
 	row := db.QueryRow("SELECT count(id) AS nbadmin FROM users WHERE game_master = 1")
