@@ -17,6 +17,10 @@ const (
 	DuplicateUser
 	// AuthError signals an Email/password mismatch
 	AuthError
+	// DatabaseEmpty signals that the db must be initialized
+	DatabaseEmpty
+	// DatabaseAlreadyInitialized signals that you can't init an existing database
+	DatabaseAlreadyInitialized
 )
 
 /*

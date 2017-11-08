@@ -21,6 +21,8 @@ func main() {
 	switch action {
 	case "init":
 		initDB()
+	case "server":
+		log.Print("One day, a server will be started here. But not today.")
 	default:
 		log.Fatalf("Unknown action %s", action)
 	}
@@ -64,29 +66,24 @@ func initDB() {
 	} else {
 		dbPath = "data/db/moenawark.sqlite"
 	}
-	db, err := sqlstore.Open(dbPath)
+	db, err := sqlstore.Init(dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	if user.HasAdmin(db) {
-		log.Printf("One or more game masters registered in database\n")
-	} else {
-		log.Printf("No game masters registered in database, will create one.\n")
-		admin, err := readAdminUser()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err = admin.Save(db); err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Created admin user %s", admin.Login)
-
-		data, err := json.Marshal(admin)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("u: %s\n", data)
+	admin, err := readAdminUser()
+	if err != nil {
+		log.Fatal(err)
 	}
+	if err = admin.Save(db); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Created admin user %s", admin.Login)
+
+	data, err := json.Marshal(admin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("u: %s\n", data)
 }

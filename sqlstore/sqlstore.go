@@ -4,26 +4,38 @@ import (
 	"database/sql"
 	"fmt"
 	sqlite3 "github.com/mattn/go-sqlite3"
+	"github.com/morluque/moenawark/mwkerr"
 	"os"
 )
 
 // Open returns a new database connection.
 // Currently uses sqlite.
 func Open(dbPath string) (*sql.DB, error) {
-	needsInitSchema := false
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		needsInitSchema = true
+		return nil, mwkerr.New(mwkerr.DatabaseEmpty, "Database %s does not exist, must be initialized", dbPath)
 	}
 
 	db, err := openPath(dbPath)
 	if err != nil {
 		return nil, err
 	}
-	if needsInitSchema {
-		err = create(db)
-		if err != nil {
-			return nil, err
-		}
+
+	return db, nil
+}
+
+// Init creates a new empty database with our SQL schema
+func Init(dbPath string) (*sql.DB, error) {
+	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
+		return nil, mwkerr.New(mwkerr.DatabaseAlreadyInitialized, "Can't initialize existing database %s", dbPath)
+	}
+
+	db, err := openPath(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	err = create(db)
+	if err != nil {
+		return nil, err
 	}
 
 	return db, nil
