@@ -8,6 +8,7 @@ import (
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/model/user"
 	"github.com/morluque/moenawark/sqlstore"
+	"github.com/morluque/moenawark/universe"
 	"log"
 	"os"
 )
@@ -19,8 +20,10 @@ func main() {
 	action := os.Args[1]
 
 	switch action {
-	case "init":
+	case "initdb":
 		initDB()
+	case "inituniverse":
+		initUniverse()
 	case "server":
 		log.Print("One day, a server will be started here. But not today.")
 	default:
@@ -49,7 +52,7 @@ func readAdminUser() (*user.User, error) {
 	return u, nil
 }
 
-func initDB() {
+func loadConfig() *config.Config {
 	opts := flag.NewFlagSet("moenawark", flag.PanicOnError)
 	var configPath = opts.String("cfg", "moenawark.toml", "path to TOML config file")
 	opts.Parse(os.Args[2:])
@@ -59,6 +62,21 @@ func initDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return conf
+}
+
+func initUniverse() {
+	//conf := loadConfig()
+
+	u := universe.Generate(1000, 1000, 10, 20)
+	if err := u.WriteDotFile("tmp.gv"); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initDB() {
+	conf := loadConfig()
 
 	var dbPath string
 	if len(conf.DBPath) > 0 {
