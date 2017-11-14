@@ -122,7 +122,7 @@ func dist(p1, p2 Point) float64 {
 }
 
 func crossProduct(a, b Point) float64 {
-	// The mathematical definition applies to exis going north east, but ours go
+	// The mathematical definition applies to axis going north east, but ours go
 	// south east; so we work with the opposite of Y coordinate
 	// Doesn't really matter as all we're really interested in is wether cross
 	// product is the same for two segments starting from origin.
