@@ -69,7 +69,18 @@ func loadConfig() *config.Config {
 func initUniverse() {
 	//conf := loadConfig()
 
-	u := universe.Generate(1000, 1000, 10, 20)
+	cfg := universe.Config{
+		Radius:       500,
+		MinPlaceDist: 100,
+		MaxWayLength: 110,
+		RegionConfig: universe.RegionConfig{
+			Count:        5,
+			Radius:       100,
+			MinPlaceDist: 10,
+			MaxWayLength: 20,
+		},
+	}
+	u := universe.Generate(cfg)
 	if err := u.WriteDotFile("tmp.gv"); err != nil {
 		log.Fatal(err)
 	}

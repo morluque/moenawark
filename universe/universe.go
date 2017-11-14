@@ -8,51 +8,75 @@ import (
 	"os"
 )
 
-// Universe stores places and ways between them
-type Universe struct {
-	Width        int
-	Height       int
+type RegionConfig struct {
+	Count        int
+	Radius       float64
 	MinPlaceDist float64
 	MaxWayLength float64
-	RegionCount  int
-	RegionRadius float64
-	Places       []Place
-	Ways         []Way
-	points       []Point
-	segments     []Segment
-	dists        map[Segment]float64
 }
 
-func newUniverse(width, height int, minPlaceDist, maxWayLength float64) *Universe {
+type Config struct {
+	Radius       float64
+	MinPlaceDist float64
+	MaxWayLength float64
+	RegionConfig RegionConfig
+}
+
+// Universe stores places and ways between them
+type Universe struct {
+	Config
+	Region  *Region
+	Regions []*Region
+	Places  []Place
+	Ways    []Way
+}
+
+func newUniverse(cfg Config) *Universe {
 	u := Universe{
-		Width:        width,
-		Height:       height,
-		MinPlaceDist: minPlaceDist,
-		MaxWayLength: maxWayLength,
+		Config: cfg,
 	}
-	u.points = make([]Point, 0)
-	u.segments = make([]Segment, 0)
-	u.dists = make(map[Segment]float64)
+	u.Region = newRegion(point{x: u.Radius, y: u.Radius}, u.Radius)
 
 	return &u
 }
 
-// Point in 2D
-type Point struct {
-	X float64
-	Y float64
+// point in 2D
+type point struct {
+	x float64
+	y float64
 }
 
-// Segment in 2D
-type Segment struct {
-	A Point
-	B Point
+type Region struct {
+	Center   point
+	Radius   float64
+	points   []point
+	segments []segment
+	dists    map[segment]float64
+}
+
+func newRegion(center point, radius float64) *Region {
+	r := Region{
+		Center: point{x: center.x, y: center.y},
+		Radius: radius,
+	}
+
+	r.points = make([]point, 0)
+	r.segments = make([]segment, 0)
+	r.dists = make(map[segment]float64)
+
+	return &r
+}
+
+// segment in 2D
+type segment struct {
+	a point
+	b point
 }
 
 // Place in the universe
 type Place struct {
 	ID   int64
-	P    Point
+	P    point
 	Name string
 }
 
@@ -64,12 +88,12 @@ type Way struct {
 	Len float64
 }
 
-func (p Point) equal(b Point) bool {
-	return p.X == b.X && p.Y == b.Y
+func (p point) equal(b point) bool {
+	return p.x == b.x && p.y == b.y
 }
 
-func (s Segment) equal(s2 Segment) bool {
-	return s.A.equal(s2.A) && s.B.equal(s2.B)
+func (s segment) equal(s2 segment) bool {
+	return s.a.equal(s2.a) && s.b.equal(s2.b)
 }
 
 // WriteDotFile exports a universe to Graphviz "dot" format
@@ -86,7 +110,7 @@ func (u *Universe) WriteDotFile(path string) error {
 		return err
 	}
 	for _, p := range u.Places {
-		_, err = f.WriteString(fmt.Sprintf("    p%d [pos=\"%f,%f!\"];\n", p.ID, p.P.X*scale, p.P.Y*scale))
+		_, err = f.WriteString(fmt.Sprintf("    p%d [pos=\"%f,%f!\"];\n", p.ID, p.P.x*scale, p.P.y*scale))
 		if err != nil {
 			return err
 		}
@@ -103,7 +127,7 @@ func (u *Universe) WriteDotFile(path string) error {
 
 var nextPlaceID int64 = 1
 
-func newPlace(p Point) Place {
+func newPlace(p point) Place {
 	place := Place{ID: nextPlaceID, P: p, Name: "TODO"}
 	nextPlaceID++
 	return place
@@ -111,20 +135,20 @@ func newPlace(p Point) Place {
 
 var nextWayID int64 = 1
 
-func newWay(s Segment, places []Place) Way {
+func newWay(s segment, places []Place) Way {
 	src := Place{ID: 0}
 	dst := Place{ID: 0}
 	for _, pl := range places {
-		if pl.P.equal(s.A) {
+		if pl.P.equal(s.a) {
 			src.ID = pl.ID
-			src.P.X = pl.P.X
-			src.P.Y = pl.P.Y
+			src.P.x = pl.P.x
+			src.P.y = pl.P.y
 			src.Name = pl.Name
 		}
-		if pl.P.equal(s.B) {
+		if pl.P.equal(s.b) {
 			dst.ID = pl.ID
-			dst.P.X = pl.P.X
-			dst.P.Y = pl.P.Y
+			dst.P.x = pl.P.x
+			dst.P.y = pl.P.y
 			dst.Name = pl.Name
 		}
 		if src.ID != 0 && dst.ID != 0 {
@@ -140,75 +164,75 @@ func newWay(s Segment, places []Place) Way {
 // EPSILON is the precision to use for cross-product comparison
 const EPSILON float64 = 0.000001
 
-func dist(p1, p2 Point) float64 {
-	return math.Sqrt((p1.X-p2.X)*(p1.X-p2.X) + (p1.Y-p2.Y)*(p1.Y-p2.Y))
+func dist(p1, p2 point) float64 {
+	return math.Sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y))
 }
 
-func crossProduct(a, b Point) float64 {
+func crossProduct(a, b point) float64 {
 	// The mathematical definition applies to axis going north east, but ours go
-	// south east; so we work with the opposite of Y coordinate
+	// south east; so we work with the opposite of y coordinate
 	// Doesn't really matter as all we're really interested in is wether cross
 	// product is the same for two segments starting from origin.
-	return a.X*-b.Y - b.X*-a.Y
+	return a.x*-b.y - b.x*-a.y
 }
 
-func (p Point) translate(a Point) Point {
-	return Point{X: p.X - a.X, Y: p.Y - a.Y}
+func (p point) translate(a point) point {
+	return point{x: p.x - a.x, y: p.y - a.y}
 }
 
-func (s Segment) translate(a Point) Segment {
-	return Segment{A: Point{X: s.A.X - a.X, Y: s.A.Y - a.Y}, B: Point{X: s.B.X - a.X, Y: s.B.Y - a.Y}}
+func (s segment) translate(a point) segment {
+	return segment{a: point{x: s.a.x - a.x, y: s.a.y - a.y}, b: point{x: s.b.x - a.x, y: s.b.y - a.y}}
 }
 
-func (s Segment) boundingBox() Segment {
-	a := Point{X: s.A.X, Y: s.A.Y}
-	b := Point{X: s.B.X, Y: s.B.Y}
+func (s segment) boundingBox() segment {
+	a := point{x: s.a.x, y: s.a.y}
+	b := point{x: s.b.x, y: s.b.y}
 	// Axis extend to south east
-	if a.X > b.X {
-		// if a east of b, swap X
-		a.X = s.B.X
-		b.X = s.A.X
+	if a.x > b.x {
+		// if a east of b, swap x
+		a.x = s.b.x
+		b.x = s.a.x
 	}
-	if a.Y > b.Y {
-		// if a south of b, swap Y
-		a.Y = s.B.Y
-		b.Y = s.A.Y
+	if a.y > b.y {
+		// if a south of b, swap y
+		a.y = s.b.y
+		b.y = s.a.y
 	}
 
-	return Segment{A: a, B: b}
+	return segment{a: a, b: b}
 }
 
-func doBBoxIntersect(s1, s2 Segment) bool {
-	return (s1.A.X < s2.B.X) && (s1.B.X > s2.A.X) && (s1.A.Y < s2.B.Y) && (s1.B.Y > s2.A.Y)
+func doBBoxIntersect(s1, s2 segment) bool {
+	return (s1.a.x < s2.b.x) && (s1.b.x > s2.a.x) && (s1.a.y < s2.b.y) && (s1.b.y > s2.a.y)
 }
 
-func isPointOnSegment(s Segment, p Point) bool {
-	if s.A.equal(p) || s.B.equal(p) {
+func isPointOnSegment(s segment, p point) bool {
+	if s.a.equal(p) || s.b.equal(p) {
 		return false
 	}
-	// Translate s and p so that s.A is at origin
-	sTransOrig := s.translate(s.A)
-	pTransOrig := p.translate(s.A)
-	cp := crossProduct(sTransOrig.B, pTransOrig)
+	// Translate s and p so that s.a is at origin
+	sTransOrig := s.translate(s.a)
+	pTransOrig := p.translate(s.a)
+	cp := crossProduct(sTransOrig.b, pTransOrig)
 	return math.Abs(cp) < EPSILON
 }
 
-func isPointRightOfLine(s Segment, p Point) bool {
-	// Translate s and p so that s.A is at origin
-	sTransOrig := s.translate(s.A)
-	pTransOrig := p.translate(s.A)
-	return crossProduct(sTransOrig.B, pTransOrig) > 0
+func isPointRightOfLine(s segment, p point) bool {
+	// Translate s and p so that s.a is at origin
+	sTransOrig := s.translate(s.a)
+	pTransOrig := p.translate(s.a)
+	return crossProduct(sTransOrig.b, pTransOrig) > 0
 }
 
-func doesSegmentCrosses(s1, s2 Segment) bool {
-	if isPointOnSegment(s1, s2.A) || isPointOnSegment(s1, s2.B) {
+func doesSegmentCrosses(s1, s2 segment) bool {
+	if isPointOnSegment(s1, s2.a) || isPointOnSegment(s1, s2.b) {
 		return true
 	}
-	return isPointRightOfLine(s1, s2.A) != isPointRightOfLine(s1, s2.B)
+	return isPointRightOfLine(s1, s2.a) != isPointRightOfLine(s1, s2.b)
 }
 
-func segmentIntersect(s1, s2 Segment) bool {
-	if s1.A.equal(s2.A) || s1.A.equal(s2.B) || s1.B.equal(s2.A) || s1.B.equal(s2.B) {
+func segmentIntersect(s1, s2 segment) bool {
+	if s1.a.equal(s2.a) || s1.a.equal(s2.b) || s1.b.equal(s2.a) || s1.b.equal(s2.b) {
 		return false
 	}
 	b1 := s1.boundingBox()
@@ -219,17 +243,27 @@ func segmentIntersect(s1, s2 Segment) bool {
 	return doesSegmentCrosses(s1, s2) && doesSegmentCrosses(s2, s1)
 }
 
-func (u *Universe) generatePoints() {
+func randPointInRegion(r *Region) point {
+	for i := 0; i < 1000; i++ {
+		p := point{x: rand.Float64() * r.Radius * 2, y: rand.Float64() * r.Radius * 2}
+		if dist(r.Center, p) <= r.Radius {
+			return p
+		}
+	}
+	return point{}
+}
+
+func (r *Region) generatePoints(minPlaceDist float64) {
 	fail := 0
 	for {
 		fail++
-		if fail > (u.Width+u.Height)/2*100 {
+		if fail > int(r.Radius)*100 {
 			break
 		}
-		newp := Point{X: rand.Float64() * float64(u.Width), Y: rand.Float64() * float64(u.Height)}
+		newp := randPointInRegion(r)
 		ok := true
-		for _, p := range u.points {
-			if p.equal(newp) || dist(p, newp) <= u.MinPlaceDist {
+		for _, p := range r.points {
+			if p.equal(newp) || dist(p, newp) <= minPlaceDist {
 				ok = false
 				break
 			}
@@ -238,39 +272,47 @@ func (u *Universe) generatePoints() {
 			continue
 		}
 		fail = 0
-		u.points = append(u.points, newp)
+		r.points = append(r.points, newp)
 	}
-	log.Printf("%d points generated\n", len(u.points))
+	log.Printf("%d points generated\n", len(r.points))
 }
 
-func (u *Universe) computeDists() {
-	for _, a := range u.points {
-		for _, b := range u.points {
+func (u *Universe) generatePoints() {
+	u.Region.generatePoints(u.MinPlaceDist)
+}
+
+func (r *Region) computeDists(maxWayLength float64) {
+	for _, a := range r.points {
+		for _, b := range r.points {
 			if a.equal(b) {
 				continue
 			}
-			if d := dist(a, b); d <= u.MaxWayLength {
-				u.dists[Segment{A: a, B: b}] = d
-				u.dists[Segment{A: b, B: a}] = d
+			if d := dist(a, b); d <= maxWayLength {
+				r.dists[segment{a: a, b: b}] = d
+				r.dists[segment{a: b, b: a}] = d
 			}
 		}
 	}
-	log.Printf("%d potential segments\n", len(u.dists))
+	log.Printf("%d potential segments\n", len(r.dists))
 }
 
-func copySegment(s Segment) Segment {
-	a := Point{X: s.A.X, Y: s.A.Y}
-	b := Point{X: s.B.X, Y: s.B.Y}
-
-	return Segment{A: a, B: b}
+func (u *Universe) computeDists() {
+	u.Region.computeDists(u.MaxWayLength)
 }
 
-func (u *Universe) generateSegments() {
-	for _, a := range u.points {
-		for news := range u.dists {
-			if news.A.equal(a) {
+func copySegment(s segment) segment {
+	a := point{x: s.a.x, y: s.a.y}
+	b := point{x: s.b.x, y: s.b.y}
+
+	return segment{a: a, b: b}
+}
+
+func (r *Region) generateSegments() {
+	for _, a := range r.points {
+		for news := range r.dists {
+			if news.a.equal(a) {
 				ok := true
-				for _, s := range u.segments {
+				for _, s := range r.segments {
 					if segmentIntersect(s, news) {
 						ok = false
 						break
@@ -279,45 +321,113 @@ func (u *Universe) generateSegments() {
 				if !ok {
 					continue
 				}
-				u.segments = append(u.segments, copySegment(news))
+				r.segments = append(r.segments, copySegment(news))
 			}
 		}
 	}
-	log.Printf("%d segments generated\n", len(u.segments))
+	log.Printf("%d segments generated\n", len(r.segments))
+}
+
+func (u *Universe) generateSegments() {
+	u.Region.generateSegments()
+}
+
+func (u *Universe) generateRegions() {
+	u.Regions = make([]*Region, 0)
+
+	for i := 0; i < u.RegionConfig.Count; i++ {
+		for {
+			p := u.Region.points[rand.Intn(len(u.Region.points))]
+			ok := true
+			for _, r := range u.Regions {
+				if dist(r.Center, p) <= r.Radius {
+					ok = false
+					break
+				}
+			}
+			if !ok {
+				continue
+			}
+			u.Regions = append(u.Regions, newRegion(p, u.RegionConfig.Radius))
+			break
+		}
+	}
+	u.densifyRegions()
+}
+
+func (u *Universe) densifyRegions() {
+	for _, r := range u.Regions {
+		r.generatePoints(u.RegionConfig.MinPlaceDist)
+		r.computeDists(u.RegionConfig.MaxWayLength)
+		r.generateSegments()
+	}
 }
 
 func (u *Universe) makePlacesAndWays() {
-	u.Places = make([]Place, len(u.points))
-	for i, p := range u.points {
-		u.Places[i] = newPlace(p)
+	np := len(u.Region.points)
+	for _, r := range u.Regions {
+		np += len(r.points)
+	}
+	u.Places = make([]Place, np)
+	n := 0
+	for _, p := range u.Region.points {
+		u.Places[n] = newPlace(p)
+		n++
+	}
+	for _, r := range u.Regions {
+		for _, p := range r.points {
+			u.Places[n] = newPlace(p)
+			n++
+		}
 	}
 
-	u.Ways = make([]Way, len(u.segments))
-	for i, s := range u.segments {
-		u.Ways[i] = newWay(s, u.Places)
+	ns := len(u.Region.segments)
+	for _, r := range u.Regions {
+		ns += len(r.segments)
+	}
+	u.Ways = make([]Way, ns)
+	n = 0
+	for _, s := range u.Region.segments {
+		u.Ways[n] = newWay(s, u.Places)
+		n++
+	}
+	for _, r := range u.Regions {
+		for _, s := range r.segments {
+			u.Ways[n] = newWay(s, u.Places)
+			n++
+		}
 	}
 }
 
 func (u *Universe) cleanup() {
-	u.points = make([]Point, 0)
-	u.segments = make([]Segment, 0)
-	u.dists = make(map[Segment]float64)
+	u.Region.points = make([]point, 0)
+	u.Region.segments = make([]segment, 0)
+	u.Region.dists = make(map[segment]float64)
+	for _, r := range u.Regions {
+		r.points = make([]point, 0)
+		r.segments = make([]segment, 0)
+		r.dists = make(map[segment]float64)
+	}
 }
 
 // Generate generates a new random universe
-func Generate(width, height int, minDist, maxWayLength float64) *Universe {
-	u := newUniverse(width, height, minDist, maxWayLength)
+func Generate(cfg Config) *Universe {
+	u := newUniverse(cfg)
 
-	log.Printf("Generating places at least distant from %d... ", int(minDist))
+	log.Printf("Generating places at least distant from %d... ", int(u.MinPlaceDist))
 	u.generatePoints()
 	log.Printf("OK\n")
 
-	log.Printf("Computing distances beneath %d... ", int(maxWayLength))
+	log.Printf("Computing distances beneath %d... ", int(u.MaxWayLength))
 	u.computeDists()
 	log.Printf("OK\n")
 
 	log.Printf("Computing ways... ")
 	u.generateSegments()
+	log.Printf("OK\n")
+
+	log.Printf("Computing regions... ")
+	u.generateRegions()
 	log.Printf("OK\n")
 
 	u.makePlacesAndWays()
