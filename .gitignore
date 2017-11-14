@@ -24,4 +24,4 @@ vendor/*/
 data/db/
 
 # TOML config files
-*.toml
+moenawark.toml
