@@ -10,8 +10,31 @@ import (
 
 // Universe stores places and ways between them
 type Universe struct {
-	Places []Place
-	Ways   []Way
+	Width        int
+	Height       int
+	MinPlaceDist float64
+	MaxWayLength float64
+	RegionCount  int
+	RegionRadius float64
+	Places       []Place
+	Ways         []Way
+	points       []Point
+	segments     []Segment
+	dists        map[Segment]float64
+}
+
+func newUniverse(width, height int, minPlaceDist, maxWayLength float64) *Universe {
+	u := Universe{
+		Width:        width,
+		Height:       height,
+		MinPlaceDist: minPlaceDist,
+		MaxWayLength: maxWayLength,
+	}
+	u.points = make([]Point, 0)
+	u.segments = make([]Segment, 0)
+	u.dists = make(map[Segment]float64)
+
+	return &u
 }
 
 // Point in 2D
@@ -196,19 +219,17 @@ func segmentIntersect(s1, s2 Segment) bool {
 	return doesSegmentCrosses(s1, s2) && doesSegmentCrosses(s2, s1)
 }
 
-func generatePoints(width, height int, minDist float64) []Point {
-	points := make([]Point, 0)
-
+func (u *Universe) generatePoints() {
 	fail := 0
 	for {
 		fail++
-		if fail > (width+height)/2*100 {
+		if fail > (u.Width+u.Height)/2*100 {
 			break
 		}
-		newp := Point{X: rand.Float64() * float64(width), Y: rand.Float64() * float64(height)}
+		newp := Point{X: rand.Float64() * float64(u.Width), Y: rand.Float64() * float64(u.Height)}
 		ok := true
-		for _, p := range points {
-			if p.equal(newp) || dist(p, newp) <= minDist {
+		for _, p := range u.points {
+			if p.equal(newp) || dist(p, newp) <= u.MinPlaceDist {
 				ok = false
 				break
 			}
@@ -217,30 +238,24 @@ func generatePoints(width, height int, minDist float64) []Point {
 			continue
 		}
 		fail = 0
-		points = append(points, newp)
+		u.points = append(u.points, newp)
 	}
-	log.Printf("%d points generated\n", len(points))
-
-	return points
+	log.Printf("%d points generated\n", len(u.points))
 }
 
-func computeDists(points []Point, maxWayLength float64) map[Segment]float64 {
-	dists := make(map[Segment]float64)
-
-	for _, a := range points {
-		for _, b := range points {
+func (u *Universe) computeDists() {
+	for _, a := range u.points {
+		for _, b := range u.points {
 			if a.equal(b) {
 				continue
 			}
-			if d := dist(a, b); d <= maxWayLength {
-				dists[Segment{A: a, B: b}] = d
-				dists[Segment{A: b, B: a}] = d
+			if d := dist(a, b); d <= u.MaxWayLength {
+				u.dists[Segment{A: a, B: b}] = d
+				u.dists[Segment{A: b, B: a}] = d
 			}
 		}
 	}
-	log.Printf("%d potential segments\n", len(dists))
-
-	return dists
+	log.Printf("%d potential segments\n", len(u.dists))
 }
 
 func copySegment(s Segment) Segment {
@@ -250,13 +265,12 @@ func copySegment(s Segment) Segment {
 	return Segment{A: a, B: b}
 }
 
-func generateSegments(points []Point, dists map[Segment]float64) []Segment {
-	segments := make([]Segment, 0)
-	for _, a := range points {
-		for news := range dists {
+func (u *Universe) generateSegments() {
+	for _, a := range u.points {
+		for news := range u.dists {
 			if news.A.equal(a) {
 				ok := true
-				for _, s := range segments {
+				for _, s := range u.segments {
 					if segmentIntersect(s, news) {
 						ok = false
 						break
@@ -265,38 +279,50 @@ func generateSegments(points []Point, dists map[Segment]float64) []Segment {
 				if !ok {
 					continue
 				}
-				segments = append(segments, copySegment(news))
+				u.segments = append(u.segments, copySegment(news))
 			}
 		}
 	}
-	log.Printf("%d segments generated\n", len(segments))
+	log.Printf("%d segments generated\n", len(u.segments))
+}
 
-	return segments
+func (u *Universe) makePlacesAndWays() {
+	u.Places = make([]Place, len(u.points))
+	for i, p := range u.points {
+		u.Places[i] = newPlace(p)
+	}
+
+	u.Ways = make([]Way, len(u.segments))
+	for i, s := range u.segments {
+		u.Ways[i] = newWay(s, u.Places)
+	}
+}
+
+func (u *Universe) cleanup() {
+	u.points = make([]Point, 0)
+	u.segments = make([]Segment, 0)
+	u.dists = make(map[Segment]float64)
 }
 
 // Generate generates a new random universe
 func Generate(width, height int, minDist, maxWayLength float64) *Universe {
+	u := newUniverse(width, height, minDist, maxWayLength)
+
 	log.Printf("Generating places at least distant from %d... ", int(minDist))
-	points := generatePoints(width, height, minDist)
+	u.generatePoints()
 	log.Printf("OK\n")
 
 	log.Printf("Computing distances beneath %d... ", int(maxWayLength))
-	dists := computeDists(points, maxWayLength)
+	u.computeDists()
 	log.Printf("OK\n")
 
 	log.Printf("Computing ways... ")
-	segments := generateSegments(points, dists)
+	u.generateSegments()
 	log.Printf("OK\n")
 
-	places := make([]Place, len(points))
-	for i, p := range points {
-		places[i] = newPlace(p)
-	}
+	u.makePlacesAndWays()
 
-	ways := make([]Way, 0)
-	for _, s := range segments {
-		ways = append(ways, newWay(s, places))
-	}
+	u.cleanup()
 
-	return &Universe{Places: places, Ways: ways}
+	return u
 }
