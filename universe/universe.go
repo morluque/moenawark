@@ -35,7 +35,7 @@ func newUniverse(cfg Config) *Universe {
 	u := Universe{
 		Config: cfg,
 	}
-	u.Region = newRegion(point{x: u.Radius, y: u.Radius}, u.Radius)
+	u.Region = newRegion(nil, point{x: u.Radius, y: u.Radius}, u.Radius)
 
 	return &u
 }
@@ -47,6 +47,7 @@ type point struct {
 }
 
 type Region struct {
+	Parent   *Region
 	Center   point
 	Radius   float64
 	points   []point
@@ -54,7 +55,7 @@ type Region struct {
 	dists    map[segment]float64
 }
 
-func newRegion(center point, radius float64) *Region {
+func newRegion(parent *Region, center point, radius float64) *Region {
 	r := Region{
 		Center: point{x: center.x, y: center.y},
 		Radius: radius,
@@ -63,6 +64,9 @@ func newRegion(center point, radius float64) *Region {
 	r.points = make([]point, 0)
 	r.segments = make([]segment, 0)
 	r.dists = make(map[segment]float64)
+	if parent != nil {
+		r.Parent = parent
+	}
 
 	return &r
 }
@@ -243,17 +247,23 @@ func segmentIntersect(s1, s2 segment) bool {
 	return doesSegmentCrosses(s1, s2) && doesSegmentCrosses(s2, s1)
 }
 
+func (r *Region) containsPoint(p point) bool {
+	return dist(r.Center, p) <= r.Radius
+}
+
 func randPointInRegion(r *Region) point {
 	for i := 0; i < 1000; i++ {
-		p := point{x: rand.Float64() * r.Radius * 2, y: rand.Float64() * r.Radius * 2}
-		if dist(r.Center, p) <= r.Radius {
+		x := r.Center.x - r.Radius + rand.Float64()*r.Radius*2
+		y := r.Center.y - r.Radius + rand.Float64()*r.Radius*2
+		p := point{x: x, y: y}
+		if r.containsPoint(p) {
 			return p
 		}
 	}
 	return point{}
 }
 
-func (r *Region) generatePoints(minPlaceDist float64) {
+func (r *Region) generatePoints(minPlaceDist float64, otherPoints []point) {
 	fail := 0
 	for {
 		fail++
@@ -262,10 +272,18 @@ func (r *Region) generatePoints(minPlaceDist float64) {
 		}
 		newp := randPointInRegion(r)
 		ok := true
-		for _, p := range r.points {
+		for _, p := range otherPoints {
 			if p.equal(newp) || dist(p, newp) <= minPlaceDist {
 				ok = false
 				break
+			}
+		}
+		if ok {
+			for _, p := range r.points {
+				if p.equal(newp) || dist(p, newp) <= minPlaceDist {
+					ok = false
+					break
+				}
 			}
 		}
 		if !ok {
@@ -278,7 +296,13 @@ func (r *Region) generatePoints(minPlaceDist float64) {
 }
 
 func (u *Universe) generatePoints() {
-	u.Region.generatePoints(u.MinPlaceDist)
+	points := make([]point, 0)
+	for _, r := range u.Regions {
+		for _, p := range r.points {
+			points = append(points, p)
+		}
+	}
+	u.Region.generatePoints(u.MinPlaceDist, points)
 }
 
 func (r *Region) computeDists(maxWayLength float64) {
@@ -307,15 +331,23 @@ func copySegment(s segment) segment {
 	return segment{a: a, b: b}
 }
 
-func (r *Region) generateSegments() {
+func (r *Region) generateSegments(otherSegments []segment) {
 	for _, a := range r.points {
 		for news := range r.dists {
 			if news.a.equal(a) {
 				ok := true
-				for _, s := range r.segments {
+				for _, s := range otherSegments {
 					if segmentIntersect(s, news) {
 						ok = false
 						break
+					}
+				}
+				if ok {
+					for _, s := range r.segments {
+						if segmentIntersect(s, news) {
+							ok = false
+							break
+						}
 					}
 				}
 				if !ok {
@@ -329,7 +361,13 @@ func (r *Region) generateSegments() {
 }
 
 func (u *Universe) generateSegments() {
-	u.Region.generateSegments()
+	segments := make([]segment, 0)
+	for _, r := range u.Regions {
+		for _, p := range r.segments {
+			segments = append(segments, p)
+		}
+	}
+	u.Region.generateSegments(segments)
 }
 
 func (u *Universe) generateRegions() {
@@ -337,10 +375,10 @@ func (u *Universe) generateRegions() {
 
 	for i := 0; i < u.RegionConfig.Count; i++ {
 		for {
-			p := u.Region.points[rand.Intn(len(u.Region.points))]
+			p := randPointInRegion(u.Region)
 			ok := true
 			for _, r := range u.Regions {
-				if dist(r.Center, p) <= r.Radius {
+				if dist(r.Center, p) <= r.Radius*2 {
 					ok = false
 					break
 				}
@@ -348,7 +386,7 @@ func (u *Universe) generateRegions() {
 			if !ok {
 				continue
 			}
-			u.Regions = append(u.Regions, newRegion(p, u.RegionConfig.Radius))
+			u.Regions = append(u.Regions, newRegion(u.Region, p, u.RegionConfig.Radius))
 			break
 		}
 	}
@@ -356,10 +394,13 @@ func (u *Universe) generateRegions() {
 }
 
 func (u *Universe) densifyRegions() {
+	points := make([]point, 0)
+	segments := make([]segment, 0)
 	for _, r := range u.Regions {
-		r.generatePoints(u.RegionConfig.MinPlaceDist)
+		log.Printf("region [%f, %f] r%f\n", r.Center.x, r.Center.y, r.Radius)
+		r.generatePoints(u.RegionConfig.MinPlaceDist, points)
 		r.computeDists(u.RegionConfig.MaxWayLength)
-		r.generateSegments()
+		r.generateSegments(segments)
 	}
 }
 
@@ -414,6 +455,10 @@ func (u *Universe) cleanup() {
 func Generate(cfg Config) *Universe {
 	u := newUniverse(cfg)
 
+	log.Printf("Computing regions... ")
+	u.generateRegions()
+	log.Printf("OK\n")
+
 	log.Printf("Generating places at least distant from %d... ", int(u.MinPlaceDist))
 	u.generatePoints()
 	log.Printf("OK\n")
@@ -424,10 +469,6 @@ func Generate(cfg Config) *Universe {
 
 	log.Printf("Computing ways... ")
 	u.generateSegments()
-	log.Printf("OK\n")
-
-	log.Printf("Computing regions... ")
-	u.generateRegions()
 	log.Printf("OK\n")
 
 	u.makePlacesAndWays()
