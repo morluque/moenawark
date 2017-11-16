@@ -70,14 +70,14 @@ func initUniverse() {
 	//conf := loadConfig()
 
 	cfg := universe.Config{
-		Radius:       300,
-		MinPlaceDist: 50,
-		MaxWayLength: 100,
+		Radius:       1000,
+		MinPlaceDist: 80,
+		MaxWayLength: 150,
 		RegionConfig: universe.RegionConfig{
-			Count:        3,
-			Radius:       80,
+			Count:        5,
+			Radius:       120,
 			MinPlaceDist: 20,
-			MaxWayLength: 30,
+			MaxWayLength: 40,
 		},
 	}
 	u := universe.Generate(cfg)

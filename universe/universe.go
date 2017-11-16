@@ -305,23 +305,22 @@ func (u *Universe) generatePoints() {
 	u.Region.generatePoints(u.MinPlaceDist, points)
 }
 
-func (r *Region) computeDists(maxWayLength float64) {
-	for _, a := range r.points {
-		for _, b := range r.points {
+func computeDists(srcs, dsts []point, maxWayLength float64) map[segment]float64 {
+	dists := make(map[segment]float64)
+	srcdsts := append(srcs, dsts...)
+	for _, a := range srcs {
+		for _, b := range srcdsts {
 			if a.equal(b) {
 				continue
 			}
 			if d := dist(a, b); d <= maxWayLength {
-				r.dists[segment{a: a, b: b}] = d
-				r.dists[segment{a: b, b: a}] = d
+				dists[segment{a: a, b: b}] = d
 			}
 		}
 	}
-	log.Printf("%d potential segments\n", len(r.dists))
-}
+	log.Printf("%d potential segments\n", len(dists))
 
-func (u *Universe) computeDists() {
-	u.Region.computeDists(u.MaxWayLength)
+	return dists
 }
 
 func copySegment(s segment) segment {
@@ -331,43 +330,45 @@ func copySegment(s segment) segment {
 	return segment{a: a, b: b}
 }
 
-func (r *Region) generateSegments(otherSegments []segment) {
-	for _, a := range r.points {
-		for news := range r.dists {
-			if news.a.equal(a) {
-				ok := true
-				for _, s := range otherSegments {
-					if segmentIntersect(s, news) {
-						ok = false
-						break
-					}
-				}
-				if ok {
-					for _, s := range r.segments {
-						if segmentIntersect(s, news) {
-							ok = false
-							break
-						}
-					}
-				}
-				if !ok {
-					continue
-				}
-				r.segments = append(r.segments, copySegment(news))
+func generateSegments(dists map[segment]float64, existingSegments []segment) []segment {
+	segments := make([]segment, 0)
+
+	for news, _ := range dists {
+		intersect := false
+		for _, s := range existingSegments {
+			if segmentIntersect(news, s) {
+				intersect = true
+				break
 			}
 		}
+		if !intersect {
+			for _, s := range segments {
+				if segmentIntersect(news, s) {
+					intersect = true
+					break
+				}
+			}
+		}
+		if intersect {
+			continue
+		}
+		segments = append(segments, news)
 	}
-	log.Printf("%d segments generated\n", len(r.segments))
+	log.Printf("generated %d segments\n", len(segments))
+
+	return segments
 }
 
 func (u *Universe) generateSegments() {
-	segments := make([]segment, 0)
+	sources := u.Region.points
+	dests := make([]point, 0)
+	existingSegments := make([]segment, 0)
 	for _, r := range u.Regions {
-		for _, p := range r.segments {
-			segments = append(segments, p)
-		}
+		dests = append(dests, r.points...)
+		existingSegments = append(existingSegments, r.segments...)
 	}
-	u.Region.generateSegments(segments)
+	dists := computeDists(sources, dests, u.MaxWayLength)
+	u.Region.segments = generateSegments(dists, existingSegments)
 }
 
 func (u *Universe) generateRegions() {
@@ -399,8 +400,8 @@ func (u *Universe) densifyRegions() {
 	for _, r := range u.Regions {
 		log.Printf("region [%f, %f] r%f\n", r.Center.x, r.Center.y, r.Radius)
 		r.generatePoints(u.RegionConfig.MinPlaceDist, points)
-		r.computeDists(u.RegionConfig.MaxWayLength)
-		r.generateSegments(segments)
+		dists := computeDists(r.points, points, u.RegionConfig.MaxWayLength)
+		r.segments = generateSegments(dists, segments)
 	}
 }
 
@@ -461,10 +462,6 @@ func Generate(cfg Config) *Universe {
 
 	log.Printf("Generating places at least distant from %d... ", int(u.MinPlaceDist))
 	u.generatePoints()
-	log.Printf("OK\n")
-
-	log.Printf("Computing distances beneath %d... ", int(u.MaxWayLength))
-	u.computeDists()
 	log.Printf("OK\n")
 
 	log.Printf("Computing ways... ")
