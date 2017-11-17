@@ -1,26 +1,28 @@
-package main
+package markov
 
 import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"unicode/utf8"
 )
 
 type MarkovChains struct {
-	prefixes []string
+	starts   []string
 	digraphs map[string]digraph
 }
 
 type digraph map[rune]float64
 
 const EOW rune = 0
+const PREFIXLEN = 2
 
 func newMarkovChains() *MarkovChains {
-	prefixes := make([]string, 0)
+	starts := make([]string, 0)
 	digraphs := make(map[string]digraph)
-	return &MarkovChains{digraphs: digraphs}
+	return &MarkovChains{digraphs: digraphs, starts: starts}
 }
 
 func (m *MarkovChains) Add(prefix string, suffix rune) {
@@ -33,8 +35,7 @@ func (m *MarkovChains) Add(prefix string, suffix rune) {
 }
 
 func (m *MarkovChains) Normalize() {
-	for prefix, d := range m.digraphs {
-		m.prefixes = append(m.prefixes, prefix)
+	for _, d := range m.digraphs {
 		var total float64 = 0
 		runes := make([]rune, 0)
 		for r, count := range d {
@@ -77,37 +78,61 @@ func Analyze(words []string) *MarkovChains {
 			log.Fatal("invalid UTF8 string %q at line %d", w, n+1)
 			break
 		}
-		if len(w) < 3 {
+		if len(w) <= PREFIXLEN {
 			continue
 		}
 		runes := getRunes(w)
+		m.starts = append(m.starts, runesToString(runes[0:PREFIXLEN]))
 		var i int
-		for i = 2; i < len(runes)-1; i++ {
+		for i = PREFIXLEN; i < len(runes)-1; i++ {
 			if i >= len(runes) {
 				break
 			}
-			m.Add(runesToString(runes[i-2:i]), runes[i])
+			m.Add(runesToString(runes[i-PREFIXLEN:i]), runes[i])
 		}
-		m.Add(runesToString(runes[i-2:i]), EOW)
+		m.Add(runesToString(runes[i-PREFIXLEN:i]), EOW)
 	}
 
 	return m
 }
 
+func advancePrefix(prefix string, r rune) (rune, string) {
+	prefixRunes := getRunes(prefix)
+	prefixRunes = append(prefixRunes, r)
+	newPrefixRunes := prefixRunes[1:]
+
+	return prefixRunes[0], runesToString(newPrefixRunes)
+}
+
 func (m *MarkovChains) Generate() string {
-	prefix := m.prefixes[rand.Intn(len(m.prefixes))]
+	wordRunes := make([]rune, 0)
+	prefix := m.starts[rand.Intn(len(m.starts))]
+	var selectedRune rune = 0
 	for {
 		p := rand.Float64()
 		var n float64 = 0
+		var ru rune = 0
 		for r, q := range m.digraphs[prefix] {
 			n += q
-			if p <= q {
+			if p <= n {
+				ru = r
+				//log.Printf("%#U, p=%f", ru, q)
+				break
 			}
 		}
+		if ru == 0 {
+			// end of word
+			wordRunes = append(wordRunes, getRunes(prefix)...)
+			break
+		} else {
+			selectedRune, prefix = advancePrefix(prefix, ru)
+			wordRunes = append(wordRunes, selectedRune)
+		}
 	}
-	return ""
+	return runesToString(wordRunes)
 }
 
+/*
 func main() {
 	fscanner := bufio.NewScanner(os.Stdin)
 	words := make([]string, 0)
@@ -117,4 +142,6 @@ func main() {
 	m := Analyze(words)
 	m.Normalize()
 	fmt.Printf("generated: %s\n", m.Generate())
+	fmt.Printf("generated: %s\n", m.Generate())
 }
+*/
