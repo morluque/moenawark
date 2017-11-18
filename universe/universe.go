@@ -47,7 +47,6 @@ type Region struct {
 	Radius   float64
 	points   []point
 	segments []segment
-	dists    map[segment]float64
 }
 
 func newRegion(center point, radius float64) *Region {
@@ -58,7 +57,6 @@ func newRegion(center point, radius float64) *Region {
 
 	r.points = make([]point, 0)
 	r.segments = make([]segment, 0)
-	r.dists = make(map[segment]float64)
 
 	return &r
 }
@@ -302,11 +300,9 @@ func (u *Universe) makePlacesAndWays() {
 func (u *Universe) cleanup() {
 	u.Region.points = make([]point, 0)
 	u.Region.segments = make([]segment, 0)
-	u.Region.dists = make(map[segment]float64)
 	for _, r := range u.Regions {
 		r.points = make([]point, 0)
 		r.segments = make([]segment, 0)
-		r.dists = make(map[segment]float64)
 	}
 }
 
