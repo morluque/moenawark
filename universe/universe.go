@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// RegionConfig holds configuration for a universe region
 type RegionConfig struct {
 	Count        int
 	Radius       float64
@@ -15,6 +16,7 @@ type RegionConfig struct {
 	MaxWayLength float64
 }
 
+// Config holds configuration for a random universe
 type Config struct {
 	Radius       float64
 	MinPlaceDist float64
@@ -35,7 +37,7 @@ func newUniverse(cfg Config) *Universe {
 	u := Universe{
 		Config: cfg,
 	}
-	u.Region = newRegion(nil, point{x: u.Radius, y: u.Radius}, u.Radius)
+	u.Region = newRegion(point{x: u.Radius, y: u.Radius}, u.Radius)
 
 	return &u
 }
@@ -46,8 +48,8 @@ type point struct {
 	y float64
 }
 
+// Region represent a circular region of universe with more places density
 type Region struct {
-	Parent   *Region
 	Center   point
 	Radius   float64
 	points   []point
@@ -55,7 +57,7 @@ type Region struct {
 	dists    map[segment]float64
 }
 
-func newRegion(parent *Region, center point, radius float64) *Region {
+func newRegion(center point, radius float64) *Region {
 	r := Region{
 		Center: point{x: center.x, y: center.y},
 		Radius: radius,
@@ -64,9 +66,6 @@ func newRegion(parent *Region, center point, radius float64) *Region {
 	r.points = make([]point, 0)
 	r.segments = make([]segment, 0)
 	r.dists = make(map[segment]float64)
-	if parent != nil {
-		r.Parent = parent
-	}
 
 	return &r
 }
@@ -263,6 +262,15 @@ func randPointInRegion(r *Region) point {
 	return point{}
 }
 
+func (p point) farEnough(minDist float64, points ...point) bool {
+	for _, p2 := range points {
+		if p.equal(p2) || dist(p, p2) <= minDist {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Region) generatePoints(minPlaceDist float64, otherPoints []point) {
 	fail := 0
 	for {
@@ -271,26 +279,10 @@ func (r *Region) generatePoints(minPlaceDist float64, otherPoints []point) {
 			break
 		}
 		newp := randPointInRegion(r)
-		ok := true
-		for _, p := range otherPoints {
-			if p.equal(newp) || dist(p, newp) <= minPlaceDist {
-				ok = false
-				break
-			}
+		if newp.farEnough(minPlaceDist, otherPoints...) && newp.farEnough(minPlaceDist, r.points...) {
+			fail = 0
+			r.points = append(r.points, newp)
 		}
-		if ok {
-			for _, p := range r.points {
-				if p.equal(newp) || dist(p, newp) <= minPlaceDist {
-					ok = false
-					break
-				}
-			}
-		}
-		if !ok {
-			continue
-		}
-		fail = 0
-		r.points = append(r.points, newp)
 	}
 	log.Printf("%d points generated\n", len(r.points))
 }
@@ -330,26 +322,20 @@ func copySegment(s segment) segment {
 	return segment{a: a, b: b}
 }
 
+func (s segment) intersect(segments ...segment) bool {
+	for _, s2 := range segments {
+		if segmentIntersect(s, s2) {
+			return true
+		}
+	}
+	return false
+}
+
 func generateSegments(dists map[segment]float64, existingSegments []segment) []segment {
 	segments := make([]segment, 0)
 
-	for news, _ := range dists {
-		intersect := false
-		for _, s := range existingSegments {
-			if segmentIntersect(news, s) {
-				intersect = true
-				break
-			}
-		}
-		if !intersect {
-			for _, s := range segments {
-				if segmentIntersect(news, s) {
-					intersect = true
-					break
-				}
-			}
-		}
-		if intersect {
+	for news := range dists {
+		if news.intersect(existingSegments...) || news.intersect(segments...) {
 			continue
 		}
 		segments = append(segments, news)
@@ -387,7 +373,7 @@ func (u *Universe) generateRegions() {
 			if !ok {
 				continue
 			}
-			u.Regions = append(u.Regions, newRegion(u.Region, p, u.RegionConfig.Radius))
+			u.Regions = append(u.Regions, newRegion(p, u.RegionConfig.Radius))
 			break
 		}
 	}
