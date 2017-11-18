@@ -1,4 +1,4 @@
-package character
+package model
 
 import (
 	"database/sql"
@@ -14,8 +14,8 @@ type Character struct {
 	Actions uint   `json:"actions"`
 }
 
-// New creates a new character.
-func New(name string, power uint, actions uint) *Character {
+// NewCharacter creates a new character.
+func NewCharacter(name string, power uint, actions uint) *Character {
 	return &Character{Name: name, Power: power, Actions: actions}
 }
 
@@ -68,8 +68,8 @@ func (c *Character) Save(db *sql.DB) error {
 	return nil
 }
 
-// Load fetches a character from databse by it's name.
-func Load(db *sql.DB, name string) (*Character, error) {
+// LoadCharacter fetches a character from databse by it's name.
+func LoadCharacter(db *sql.DB, name string) (*Character, error) {
 	var id int64
 	var power, actions uint
 	row := db.QueryRow("SELECT id, power, actions FROM characters WHERE name = $1", name)
@@ -80,8 +80,8 @@ func Load(db *sql.DB, name string) (*Character, error) {
 	return &Character{ID: id, Name: name, Power: power, Actions: actions}, nil
 }
 
-// LoadByID fetches a character from database by it's ID.
-func LoadByID(db *sql.DB, id int64) (*Character, error) {
+// LoadCharacterByID fetches a character from database by it's ID.
+func LoadCharacterByID(db *sql.DB, id int64) (*Character, error) {
 	var name string
 	var power, actions uint
 	row := db.QueryRow("SELECT name, power, actions FROM characters WHERE id = $1", id)

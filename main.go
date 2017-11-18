@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/morluque/moenawark/config"
-	"github.com/morluque/moenawark/model/user"
+	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
 	"log"
@@ -31,7 +31,7 @@ func main() {
 	}
 }
 
-func readAdminUser() (*user.User, error) {
+func readAdminUser() (*model.User, error) {
 	var login, password string
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -46,7 +46,7 @@ func readAdminUser() (*user.User, error) {
 	}
 	password = scanner.Text()
 
-	u := user.New(login, password)
+	u := model.NewUser(login, password)
 	u.GameMaster = true
 	u.Status = "active"
 	return u, nil

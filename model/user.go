@@ -1,8 +1,7 @@
-package user
+package model
 
 import (
 	"database/sql"
-	"github.com/morluque/moenawark/model/character"
 	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/password"
 	"github.com/morluque/moenawark/sqlstore"
@@ -10,20 +9,20 @@ import (
 
 // User represents a user of the game.
 type User struct {
-	ID         int64                `json:"id"`
-	Character  *character.Character `json:"character",omitempty`
-	Login      string               `json:"login"`
-	password   string               `json:""`
-	Status     string               `json:"status"`
-	GameMaster bool                 `json:"game_master"`
+	ID         int64      `json:"id"`
+	Character  *Character `json:"character",omitempty`
+	Login      string     `json:"login"`
+	password   string     `json:""`
+	Status     string     `json:"status"`
+	GameMaster bool       `json:"game_master"`
 }
 
 /*
-New creates a new user with default values.
+NewUser creates a new user with default values.
 By default, a user is not yet registered and not a game master. The password
 will be hashed before storing into the struct.
 */
-func New(login string, plaintextPassword string) *User {
+func NewUser(login string, plaintextPassword string) *User {
 	password := password.Encode(plaintextPassword)
 	return &User{Login: login, password: password, Status: "new", GameMaster: false}
 }
@@ -114,8 +113,8 @@ func (u *User) Save(db *sql.DB) error {
 	return nil
 }
 
-// Load loads a user from database by its login.
-func Load(db *sql.DB, login string) (*User, error) {
+// LoadUser loads a user from database by its login.
+func LoadUser(db *sql.DB, login string) (*User, error) {
 	var id int64
 	var password, status string
 	var gameMaster bool
@@ -126,18 +125,18 @@ func Load(db *sql.DB, login string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	var c *character.Character
+	var c *Character
 	if characterID.Valid {
-		char, _ := character.LoadByID(db, characterID.Int64)
+		char, _ := LoadCharacterByID(db, characterID.Int64)
 		c = char
 	}
 	return &User{ID: id, Login: login, password: password, Status: status, GameMaster: gameMaster, Character: c}, nil
 }
 
-// Auth loads a user from database if the login/password match.
-func Auth(db *sql.DB, login string, plaintextPassword string) (*User, error) {
+// AuthUser loads a user from database if the login/password match.
+func AuthUser(db *sql.DB, login string, plaintextPassword string) (*User, error) {
 	authErr := mwkerr.New(mwkerr.AuthError, "Authentication error")
-	u, err := Load(db, login)
+	u, err := LoadUser(db, login)
 	if err != nil {
 		return nil, authErr
 	}
