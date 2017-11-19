@@ -96,9 +96,12 @@ CREATE INDEX user_status_idx ON users (status);
 
 CREATE TABLE places (
 	id INTEGER PRIMARY KEY NOT NULL,
-	name TEXT NOT NULL,
+	name TEXT NOT NULL UNIQUE,
+	x INTEGER NOT NULL,
+	y INTEGER NOT NULL,
 	energy_production INTEGER NOT NULL
 );
+CREATE UNIQUE INDEX place_pos_idx ON places (x, y);
 
 CREATE TABLE wormholes (
 	source_id INTEGER NOT NULL CONSTRAINT fk_wormh_source REFERENCES places(id),

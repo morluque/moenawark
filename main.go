@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/morluque/moenawark/config"
+	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
@@ -67,12 +68,25 @@ func loadConfig() *config.Config {
 }
 
 func initUniverse() {
-	//conf := loadConfig()
+	conf := loadConfig()
+
+	var dbPath string
+	if len(conf.DBPath) > 0 {
+		dbPath = conf.DBPath
+	} else {
+		dbPath = "data/db/moenawark.sqlite"
+	}
+	db, err := sqlstore.Open(dbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	cfg := universe.Config{
 		Radius:       1000,
 		MinPlaceDist: 80,
 		MaxWayLength: 150,
+		MarkovGen:    markov.Load(os.Stdin, 3),
 		RegionConfig: universe.RegionConfig{
 			Count:        5,
 			Radius:       120,
@@ -80,7 +94,15 @@ func initUniverse() {
 			MaxWayLength: 40,
 		},
 	}
-	u := universe.Generate(cfg)
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	u := universe.Generate(cfg, tx)
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+	}
 	if err := u.WriteDotFile("tmp.gv"); err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +127,15 @@ func initDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = admin.Save(db); err != nil {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = admin.Save(tx); err != nil {
+		log.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("Created admin user %s", admin.Login)

@@ -19,7 +19,7 @@ func NewCharacter(name string, power uint, actions uint) *Character {
 	return &Character{Name: name, Power: power, Actions: actions}
 }
 
-func (c *Character) create(db *sql.DB) error {
+func (c *Character) create(db *sql.Tx) error {
 	result, err := db.Exec(
 		"INSERT INTO characters (name, power, actions) VALUES ($1, $2, $3)",
 		c.Name,
@@ -35,7 +35,7 @@ func (c *Character) create(db *sql.DB) error {
 	return err
 }
 
-func (c *Character) update(db *sql.DB) error {
+func (c *Character) update(db *sql.Tx) error {
 	_, err := db.Exec(
 		"UPDATE characters SET name = $1, power = $2, actions = $3",
 		c.Name,
@@ -45,7 +45,7 @@ func (c *Character) update(db *sql.DB) error {
 }
 
 // Save stores the character in database.
-func (c *Character) Save(db *sql.DB) error {
+func (c *Character) Save(db *sql.Tx) error {
 	var err error
 
 	if c.ID <= 0 {
@@ -69,7 +69,7 @@ func (c *Character) Save(db *sql.DB) error {
 }
 
 // LoadCharacter fetches a character from databse by it's name.
-func LoadCharacter(db *sql.DB, name string) (*Character, error) {
+func LoadCharacter(db *sql.Tx, name string) (*Character, error) {
 	var id int64
 	var power, actions uint
 	row := db.QueryRow("SELECT id, power, actions FROM characters WHERE name = $1", name)
@@ -81,7 +81,7 @@ func LoadCharacter(db *sql.DB, name string) (*Character, error) {
 }
 
 // LoadCharacterByID fetches a character from database by it's ID.
-func LoadCharacterByID(db *sql.DB, id int64) (*Character, error) {
+func LoadCharacterByID(db *sql.Tx, id int64) (*Character, error) {
 	var name string
 	var power, actions uint
 	row := db.QueryRow("SELECT name, power, actions FROM characters WHERE id = $1", id)

@@ -1,7 +1,10 @@
 package universe
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/morluque/moenawark/markov"
+	"github.com/morluque/moenawark/model"
 	"log"
 	"math/rand"
 	"os"
@@ -21,15 +24,17 @@ type Config struct {
 	MinPlaceDist float64
 	MaxWayLength float64
 	RegionConfig RegionConfig
+	MarkovGen    *markov.Chains
 }
 
 // Universe stores places and ways between them
 type Universe struct {
 	Config
-	Region  *Region
-	Regions []*Region
-	Places  []Place
-	Ways    []Way
+	Region    *Region
+	Regions   []*Region
+	Places    []*model.Place
+	Wormholes []*model.Wormhole
+	names     map[string]bool
 }
 
 func newUniverse(cfg Config) *Universe {
@@ -61,24 +66,9 @@ func newRegion(center point, radius float64) *Region {
 	return &r
 }
 
-// Place in the universe
-type Place struct {
-	ID   int64
-	P    point
-	Name string
-}
-
-// Way between two places
-type Way struct {
-	ID  int64
-	Src Place
-	Dst Place
-	Len float64
-}
-
 // WriteDotFile exports a universe to Graphviz "dot" format
 func (u *Universe) WriteDotFile(path string) error {
-	var scale float64 = 20
+	scale := 20
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -90,55 +80,19 @@ func (u *Universe) WriteDotFile(path string) error {
 		return err
 	}
 	for _, p := range u.Places {
-		_, err = f.WriteString(fmt.Sprintf("    p%d [pos=\"%f,%f!\"];\n", p.ID, p.P.x*scale, p.P.y*scale))
+		_, err = f.WriteString(fmt.Sprintf("    p%d [pos=\"%d,%d!\"];\n", p.ID, p.X*scale, p.Y*scale))
 		if err != nil {
 			return err
 		}
 	}
-	for _, w := range u.Ways {
-		_, err = f.WriteString(fmt.Sprintf("    p%d -> p%d;\n", w.Src.ID, w.Dst.ID))
+	for _, w := range u.Wormholes {
+		_, err = f.WriteString(fmt.Sprintf("    p%d -> p%d;\n", w.Source.ID, w.Destination.ID))
 		if err != nil {
 			return err
 		}
 	}
 	_, err = f.WriteString("}\n")
 	return err
-}
-
-var nextPlaceID int64 = 1
-
-func newPlace(p point) Place {
-	place := Place{ID: nextPlaceID, P: p, Name: "TODO"}
-	nextPlaceID++
-	return place
-}
-
-var nextWayID int64 = 1
-
-func newWay(s segment, places []Place) Way {
-	src := Place{ID: 0}
-	dst := Place{ID: 0}
-	for _, pl := range places {
-		if pl.P.equal(s.a) {
-			src.ID = pl.ID
-			src.P.x = pl.P.x
-			src.P.y = pl.P.y
-			src.Name = pl.Name
-		}
-		if pl.P.equal(s.b) {
-			dst.ID = pl.ID
-			dst.P.x = pl.P.x
-			dst.P.y = pl.P.y
-			dst.Name = pl.Name
-		}
-		if src.ID != 0 && dst.ID != 0 {
-			break
-		}
-	}
-	w := Way{ID: nextWayID, Src: src, Dst: dst, Len: dist(src.P, dst.P)}
-	nextWayID++
-
-	return w
 }
 
 func (r *Region) containsPoint(p point) bool {
@@ -261,40 +215,90 @@ func (u *Universe) densifyRegions() {
 	}
 }
 
-func (u *Universe) makePlacesAndWays() {
+func placeFromPoint(p point, markovGen *markov.Chains, names map[string]bool) *model.Place {
+	var name string
+	for {
+		name = markovGen.Generate()
+		if _, found := names[name]; !found {
+			break
+		}
+	}
+	if len(name) == 0 {
+		log.Fatal("markov random name is empty!")
+	}
+	names[name] = true
+	return model.NewPlace(name, int(p.x), int(p.y))
+}
+
+func wormholeFromSegment(s segment, places []*model.Place) *model.Wormhole {
+	srcFound, dstFound := false, false
+	var src, dst *model.Place
+	for _, p := range places {
+		if p.X == int(s.a.x) && p.Y == int(s.a.y) {
+			src = p
+			srcFound = true
+		}
+		if p.X == int(s.b.x) && p.Y == int(s.b.y) {
+			dst = p
+			dstFound = true
+		}
+		if srcFound && dstFound {
+			break
+		}
+	}
+
+	return model.NewWormhole(src, dst, int(dist(s.a, s.b)))
+}
+
+func (u *Universe) makePlacesAndWormholes(tx *sql.Tx) error {
+	u.names = make(map[string]bool)
+
 	np := len(u.Region.points)
 	for _, r := range u.Regions {
 		np += len(r.points)
 	}
-	u.Places = make([]Place, np)
+	u.Places = make([]*model.Place, np)
 	n := 0
 	for _, p := range u.Region.points {
-		u.Places[n] = newPlace(p)
+		u.Places[n] = placeFromPoint(p, u.MarkovGen, u.names)
 		n++
 	}
 	for _, r := range u.Regions {
 		for _, p := range r.points {
-			u.Places[n] = newPlace(p)
+			u.Places[n] = placeFromPoint(p, u.MarkovGen, u.names)
 			n++
 		}
 	}
+	for _, p := range u.Places {
+		if err := p.Save(tx); err != nil {
+			return err
+		}
+	}
+	log.Printf("Saved %d places to database\n", len(u.Places))
 
 	ns := len(u.Region.segments)
 	for _, r := range u.Regions {
 		ns += len(r.segments)
 	}
-	u.Ways = make([]Way, ns)
+	u.Wormholes = make([]*model.Wormhole, ns)
 	n = 0
 	for _, s := range u.Region.segments {
-		u.Ways[n] = newWay(s, u.Places)
+		u.Wormholes[n] = wormholeFromSegment(s, u.Places)
 		n++
 	}
 	for _, r := range u.Regions {
 		for _, s := range r.segments {
-			u.Ways[n] = newWay(s, u.Places)
+			u.Wormholes[n] = wormholeFromSegment(s, u.Places)
 			n++
 		}
 	}
+	for _, w := range u.Wormholes {
+		if err := w.Save(tx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (u *Universe) cleanup() {
@@ -307,7 +311,7 @@ func (u *Universe) cleanup() {
 }
 
 // Generate generates a new random universe
-func Generate(cfg Config) *Universe {
+func Generate(cfg Config, tx *sql.Tx) *Universe {
 	u := newUniverse(cfg)
 
 	log.Printf("Computing regions... ")
@@ -322,7 +326,9 @@ func Generate(cfg Config) *Universe {
 	u.generateSegments()
 	log.Printf("OK\n")
 
-	u.makePlacesAndWays()
+	if err := u.makePlacesAndWormholes(tx); err != nil {
+		log.Fatal(err)
+	}
 
 	u.cleanup()
 

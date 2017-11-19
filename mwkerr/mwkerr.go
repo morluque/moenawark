@@ -15,6 +15,8 @@ const (
 	DuplicateCharacter
 	// DuplicateUser signals that a user with this email already exists in database
 	DuplicateUser
+	// DuplicateModel signals that a model object already exists in database
+	DuplicateModel
 	// AuthError signals an Email/password mismatch
 	AuthError
 	// DatabaseEmpty signals that the db must be initialized

@@ -2,41 +2,42 @@ package markov
 
 import (
 	"bufio"
-	"fmt"
+	"io"
 	"log"
 	"math/rand"
-	"os"
 	"unicode/utf8"
 )
 
-type MarkovChains struct {
-	starts   []string
-	digraphs map[string]digraph
+// Chains represents letter-based Markov chains, udes to generate random
+// words.
+type Chains struct {
+	prefixLen int
+	starts    []string
+	digraphs  map[string]digraph
 }
 
 type digraph map[rune]float64
 
-const EOW rune = 0
-const PREFIXLEN = 2
+const endOfWord rune = 0
 
-func newMarkovChains() *MarkovChains {
+func newMarkovChains(prefixLen int) *Chains {
 	starts := make([]string, 0)
 	digraphs := make(map[string]digraph)
-	return &MarkovChains{digraphs: digraphs, starts: starts}
+	return &Chains{prefixLen: prefixLen, digraphs: digraphs, starts: starts}
 }
 
-func (m *MarkovChains) Add(prefix string, suffix rune) {
+func (m *Chains) add(prefix string, suffix rune) {
 	if d, ok := m.digraphs[prefix]; ok {
-		d[suffix] += 1
+		d[suffix]++
 	} else {
 		m.digraphs[prefix] = make(map[rune]float64)
 		m.digraphs[prefix][suffix] = 1
 	}
 }
 
-func (m *MarkovChains) Normalize() {
+func (m *Chains) normalize() {
 	for _, d := range m.digraphs {
-		var total float64 = 0
+		var total float64
 		runes := make([]rune, 0)
 		for r, count := range d {
 			total += count
@@ -71,27 +72,44 @@ func runesToString(runes []rune) string {
 	return string(bytes)
 }
 
-func Analyze(words []string) *MarkovChains {
-	m := newMarkovChains()
+func analyzeWords(prefixLen int, words []string) *Chains {
+	m := newMarkovChains(prefixLen)
 	for n, w := range words {
 		if !utf8.ValidString(w) {
 			log.Fatal("invalid UTF8 string %q at line %d", w, n+1)
 			break
 		}
-		if len(w) <= PREFIXLEN {
+		if len(w) <= m.prefixLen {
 			continue
 		}
 		runes := getRunes(w)
-		m.starts = append(m.starts, runesToString(runes[0:PREFIXLEN]))
+		m.starts = append(m.starts, runesToString(runes[0:m.prefixLen]))
 		var i int
-		for i = PREFIXLEN; i < len(runes)-1; i++ {
+		for i = m.prefixLen; i < len(runes)-1; i++ {
 			if i >= len(runes) {
 				break
 			}
-			m.Add(runesToString(runes[i-PREFIXLEN:i]), runes[i])
+			m.add(runesToString(runes[i-m.prefixLen:i]), runes[i])
 		}
-		m.Add(runesToString(runes[i-PREFIXLEN:i]), EOW)
+		m.add(runesToString(runes[i-m.prefixLen:i]), endOfWord)
 	}
+
+	return m
+}
+
+// Load loads and analyzes a list of words (one per line) from a io.Reader.
+// Once loaded, it is ready to generate random words.
+// The prefixLen parameter is the number of characters that are associated with
+// a probability of a following character.
+func Load(r io.Reader, prefixLen int) *Chains {
+	fscanner := bufio.NewScanner(r)
+	words := make([]string, 0)
+	for fscanner.Scan() {
+		words = append(words, fscanner.Text())
+	}
+	m := analyzeWords(prefixLen, words)
+	log.Printf("markov: loaded %d words", len(words))
+	m.normalize()
 
 	return m
 }
@@ -104,14 +122,16 @@ func advancePrefix(prefix string, r rune) (rune, string) {
 	return prefixRunes[0], runesToString(newPrefixRunes)
 }
 
-func (m *MarkovChains) Generate() string {
+// Generate returns a random word according to the probabilities stored in
+// markov.Chains .
+func (m *Chains) Generate() string {
 	wordRunes := make([]rune, 0)
 	prefix := m.starts[rand.Intn(len(m.starts))]
-	var selectedRune rune = 0
+	var selectedRune rune // default value is 0
 	for {
 		p := rand.Float64()
-		var n float64 = 0
-		var ru rune = 0
+		var n float64
+		var ru rune // default value is 0
 		for r, q := range m.digraphs[prefix] {
 			n += q
 			if p <= n {
@@ -131,17 +151,3 @@ func (m *MarkovChains) Generate() string {
 	}
 	return runesToString(wordRunes)
 }
-
-/*
-func main() {
-	fscanner := bufio.NewScanner(os.Stdin)
-	words := make([]string, 0)
-	for fscanner.Scan() {
-		words = append(words, fscanner.Text())
-	}
-	m := Analyze(words)
-	m.Normalize()
-	fmt.Printf("generated: %s\n", m.Generate())
-	fmt.Printf("generated: %s\n", m.Generate())
-}
-*/
