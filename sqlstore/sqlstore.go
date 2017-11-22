@@ -8,6 +8,14 @@ import (
 	"os"
 )
 
+// DB is a common interface between *sql.Tx and *sql.DB
+type DB interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Prepare(query string) (*sql.Stmt, error)
+}
+
 // Open returns a new database connection.
 // Currently uses sqlite.
 func Open(dbPath string) (*sql.DB, error) {

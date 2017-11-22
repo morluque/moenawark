@@ -1,7 +1,6 @@
 package model
 
 import (
-	"database/sql"
 	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/sqlstore"
 )
@@ -30,7 +29,7 @@ func NewPlace(name string, x, y int) *Place {
 	return &Place{Name: name, X: x, Y: y}
 }
 
-func (p *Place) create(db *sql.Tx) error {
+func (p *Place) create(db sqlstore.DB) error {
 	result, err := db.Exec(
 		"INSERT INTO places (name, x, y, energy_production) VALUES ($1, $2, $3, $4)",
 		p.Name,
@@ -47,7 +46,7 @@ func (p *Place) create(db *sql.Tx) error {
 	return err
 }
 
-func (p *Place) update(db *sql.Tx) error {
+func (p *Place) update(db sqlstore.DB) error {
 	_, err := db.Exec(
 		"UPDATE places SET name = $1, x = $2, y = $3, energy_production = $4 WHERE id = $5",
 		p.Name,
@@ -63,7 +62,7 @@ func (p *Place) update(db *sql.Tx) error {
 // It uses the ID field to know wether it was created or not; ID from new
 // places is always zero (Go zero value), and existing places have a positive
 // non-null value, from SQLite auto-increment facility (which can't be zero).
-func (p *Place) Save(db *sql.Tx) error {
+func (p *Place) Save(db sqlstore.DB) error {
 	var err error
 
 	if p.ID <= 0 {
@@ -81,7 +80,7 @@ func (p *Place) Save(db *sql.Tx) error {
 }
 
 // LoadPlace loads the place at (x, y) coordinate, if it exists.
-func LoadPlace(db *sql.Tx, x, y int) (*Place, error) {
+func LoadPlace(db sqlstore.DB, x, y int) (*Place, error) {
 	var id int64
 	var energyProduction int
 	var name string
@@ -103,7 +102,7 @@ func NewWormhole(source, destination *Place, distance int) *Wormhole {
 	}
 }
 
-func (w *Wormhole) create(db *sql.Tx) error {
+func (w *Wormhole) create(db sqlstore.DB) error {
 	result, err := db.Exec(
 		"INSERT INTO wormholes (source_id, destination_id, distance) VALUES ($1, $2, $3)",
 		w.Source.ID,
@@ -119,7 +118,7 @@ func (w *Wormhole) create(db *sql.Tx) error {
 	return err
 }
 
-func (w *Wormhole) update(db *sql.Tx) error {
+func (w *Wormhole) update(db sqlstore.DB) error {
 	_, err := db.Exec(
 		"UPDATE wormholes SET source_id = $1, destination_id = $2, distance = $3 WHERE id = $5",
 		w.Source.ID,
@@ -130,7 +129,7 @@ func (w *Wormhole) update(db *sql.Tx) error {
 }
 
 // Save stores a wormhole to database (create or update row).
-func (w *Wormhole) Save(db *sql.Tx) error {
+func (w *Wormhole) Save(db sqlstore.DB) error {
 	var err error
 
 	if w.ID <= 0 {
@@ -151,7 +150,7 @@ func (w *Wormhole) Save(db *sql.Tx) error {
 }
 
 // LoadWormholes loads wormholes that start at the given place.
-func LoadWormholes(db *sql.Tx, source *Place) ([]*Wormhole, error) {
+func LoadWormholes(db sqlstore.DB, source *Place) ([]*Wormhole, error) {
 	wormholes := make([]*Wormhole, 0)
 	sql := `
      SELECT w.id AS w_id,
