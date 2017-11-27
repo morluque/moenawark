@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/morluque/moenawark/model"
-	"github.com/morluque/moenawark/sqlstore"
 	"net/http"
 )
 
-func userGet(db sqlstore.DB, w http.ResponseWriter, r *http.Request, login string) {
+func userGet(db *sql.DB, w http.ResponseWriter, r *http.Request, login string) {
 	user, err := model.LoadUser(db, login)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -29,19 +28,19 @@ func userGet(db sqlstore.DB, w http.ResponseWriter, r *http.Request, login strin
 	fmt.Fprint(w, string(userJSON))
 }
 
-func userList(db sqlstore.DB, w http.ResponseWriter, r *http.Request) {
+func userList(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	notImplemented(w)
 }
 
-func userCreate(db sqlstore.DB, w http.ResponseWriter, r *http.Request) {
+func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) {
 	notImplemented(w)
 }
 
-func userUpdate(db sqlstore.DB, w http.ResponseWriter, r *http.Request, login string) {
+func userUpdate(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) {
 	notImplemented(w)
 }
 
-func userDelete(db sqlstore.DB, w http.ResponseWriter, r *http.Request, login string) {
+func userDelete(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) {
 	notImplemented(w)
 }
 

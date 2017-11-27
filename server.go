@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/sqlstore"
@@ -9,18 +10,20 @@ import (
 	"regexp"
 )
 
-type resourceMethod1 func(sqlstore.DB, http.ResponseWriter, *http.Request, string)
-type resourceMethod0 func(sqlstore.DB, http.ResponseWriter, *http.Request)
+type resourceMethod1 func(*sql.DB, http.ResponseWriter, *http.Request, string)
+type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string)
+type resourceMethod0 func(*sql.DB, http.ResponseWriter, *http.Request)
+type resourceMethodUpdate0 func(*sql.Tx, http.ResponseWriter, *http.Request)
 
 type resourceHandler struct {
 	listMethod   resourceMethod0
-	postMethod   resourceMethod0
+	postMethod   resourceMethodUpdate0
 	getMethod    resourceMethod1
-	putMethod    resourceMethod1
-	deleteMethod resourceMethod1
+	putMethod    resourceMethodUpdate1
+	deleteMethod resourceMethodUpdate1
 }
 
-func (h resourceHandler) register(m *http.ServeMux, db sqlstore.DB, prefix string) {
+func (h resourceHandler) register(m *http.ServeMux, db *sql.DB, prefix string) {
 	reStr := fmt.Sprintf("^%s([^/]+)?$", prefix)
 	re, err := regexp.Compile(reStr)
 	if err != nil {
@@ -45,7 +48,7 @@ func (h resourceHandler) register(m *http.ServeMux, db sqlstore.DB, prefix strin
 		}
 
 		// Open DB transaction for create/update/delete
-		tx, err := sqlstore.GetTransaction(db)
+		tx, err := db.Begin()
 		if err != nil {
 			appError(w, err)
 			return

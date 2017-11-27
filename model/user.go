@@ -58,7 +58,7 @@ func (u *User) getCharacterID() sql.NullInt64 {
 	return sql.NullInt64{0, false}
 }
 
-func (u *User) create(db sqlstore.DB) error {
+func (u *User) create(db *sql.Tx) error {
 	characterID := u.getCharacterID()
 	if characterID.Valid && characterID.Int64 <= 0 {
 		u.Character.Save(db)
@@ -80,7 +80,7 @@ func (u *User) create(db sqlstore.DB) error {
 	return err
 }
 
-func (u *User) update(db sqlstore.DB) error {
+func (u *User) update(db *sql.Tx) error {
 	characterID := u.getCharacterID()
 	if characterID.Valid && characterID.Int64 <= 0 {
 		u.Character.Save(db)
@@ -96,7 +96,7 @@ func (u *User) update(db sqlstore.DB) error {
 }
 
 // Save stores a user in database or updates it if it was previously stored.
-func (u *User) Save(db sqlstore.DB) error {
+func (u *User) Save(db *sql.Tx) error {
 	var err error
 
 	if u.ID <= 0 {
@@ -114,7 +114,7 @@ func (u *User) Save(db sqlstore.DB) error {
 }
 
 // LoadUser loads a user from database by its login.
-func LoadUser(db sqlstore.DB, login string) (*User, error) {
+func LoadUser(db *sql.DB, login string) (*User, error) {
 	var id int64
 	var password, status string
 	var gameMaster bool
@@ -134,7 +134,7 @@ func LoadUser(db sqlstore.DB, login string) (*User, error) {
 }
 
 // AuthUser loads a user from database if the login/password match.
-func AuthUser(db sqlstore.DB, login string, plaintextPassword string) (*User, error) {
+func AuthUser(db *sql.DB, login string, plaintextPassword string) (*User, error) {
 	authErr := mwkerr.New(mwkerr.AuthError, "Authentication error")
 	u, err := LoadUser(db, login)
 	if err != nil {
@@ -150,7 +150,7 @@ func AuthUser(db sqlstore.DB, login string, plaintextPassword string) (*User, er
 }
 
 // HasAdmin returns true if at least one user in database is game master.
-func HasAdmin(db sqlstore.DB) bool {
+func HasAdmin(db *sql.DB) bool {
 	var adminCount int
 	row := db.QueryRow("SELECT count(id) AS nbadmin FROM users WHERE game_master = 1")
 	err := row.Scan(&adminCount)
