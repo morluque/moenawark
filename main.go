@@ -26,6 +26,7 @@ func main() {
 	case "inituniverse":
 		initUniverse()
 	case "server":
+		serveHTTP(loadConfig())
 		log.Print("One day, a server will be started here. But not today.")
 	default:
 		log.Fatalf("Unknown action %s", action)
@@ -62,6 +63,10 @@ func loadConfig() *config.Config {
 	conf, err := config.Parse(*configPath)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if len(conf.DBPath) <= 0 {
+		conf.DBPath = "data/db/moenawark.sqlite"
 	}
 
 	return conf

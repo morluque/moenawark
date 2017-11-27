@@ -8,7 +8,7 @@ import (
 // Config holds moenawark's configuration
 type Config struct {
 	DBPath     string `toml:"db_path"`
-	AdminLogin string `toml:"admin_login"`
+	HTTPListen string `toml:"http_listen"`
 }
 
 // Parse loads the TOML configuration file into a Config struct.
