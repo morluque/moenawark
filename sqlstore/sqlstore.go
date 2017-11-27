@@ -16,6 +16,18 @@ type DB interface {
 	Prepare(query string) (*sql.Stmt, error)
 }
 
+// GetTransaction returns the active transaction or begins a new transaction.
+func GetTransaction(db DB) (DB, error) {
+	switch d := db.(type) {
+	case *sql.Tx:
+		return db, nil
+	case *sql.DB:
+		return d.Begin()
+	default:
+		return nil, fmt.Errorf("Unexpected db var: %q", db)
+	}
+}
+
 // Open returns a new database connection.
 // Currently uses sqlite.
 func Open(dbPath string) (*sql.DB, error) {

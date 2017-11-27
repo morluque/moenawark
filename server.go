@@ -33,22 +33,32 @@ func (h resourceHandler) register(m *http.ServeMux, db sqlstore.DB, prefix strin
 			http.NotFound(w, r)
 			return
 		}
-		switch r.Method {
-		case http.MethodGet:
+
+		// Handle read-only actions
+		if r.Method == http.MethodGet {
 			if len(subMatches[1]) == 0 {
 				h.listMethod(db, w, r)
 			} else {
 				h.getMethod(db, w, r, subMatches[1])
 			}
+			return
+		}
+
+		// Open DB transaction for create/update/delete
+		tx, err := sqlstore.GetTransaction(db)
+		if err != nil {
+			appError(w, err)
+			return
+		}
+		switch r.Method {
 		case http.MethodPost:
-			h.postMethod(db, w, r)
+			h.postMethod(tx, w, r)
 		case http.MethodPut:
-			h.putMethod(db, w, r, subMatches[1])
+			h.putMethod(tx, w, r, subMatches[1])
 		case http.MethodDelete:
-			h.deleteMethod(db, w, r, subMatches[1])
+			h.deleteMethod(tx, w, r, subMatches[1])
 		default:
 			unknownMethod(w)
-			return
 		}
 	}
 	m.HandleFunc(prefix, handlerFunc)
