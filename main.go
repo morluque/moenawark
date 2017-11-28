@@ -14,6 +14,13 @@ import (
 	"os"
 )
 
+var (
+	// Version of Moenawark
+	Version = "dev"
+	// BuildDate of Moenawark
+	BuildDate = "today"
+)
+
 func main() {
 	if len(os.Args) <= 1 {
 		log.Fatal("Missing first argument <action>")
@@ -28,6 +35,8 @@ func main() {
 	case "server":
 		serveHTTP(loadConfig())
 		log.Print("One day, a server will be started here. But not today.")
+	case "version":
+		fmt.Printf("Moenawark %s build %s\n", Version, BuildDate)
 	default:
 		log.Fatalf("Unknown action %s", action)
 	}
