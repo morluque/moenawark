@@ -10,6 +10,7 @@ import (
 	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
+	"github.com/morluque/moenawark/server"
 	"log"
 	"os"
 )
@@ -33,7 +34,7 @@ func main() {
 	case "inituniverse":
 		initUniverse()
 	case "server":
-		serveHTTP(loadConfig())
+		server.ServeHTTP(loadConfig())
 		log.Print("One day, a server will be started here. But not today.")
 	case "version":
 		fmt.Printf("Moenawark %s build %s\n", Version, BuildDate)

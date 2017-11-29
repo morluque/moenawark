@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"database/sql"
@@ -10,10 +10,10 @@ import (
 	"regexp"
 )
 
-type resourceMethod1 func(*sql.DB, http.ResponseWriter, *http.Request, string)
-type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string)
 type resourceMethod0 func(*sql.DB, http.ResponseWriter, *http.Request)
+type resourceMethod1 func(*sql.DB, http.ResponseWriter, *http.Request, string)
 type resourceMethodUpdate0 func(*sql.Tx, http.ResponseWriter, *http.Request)
+type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string)
 
 type resourceHandler struct {
 	listMethod   resourceMethod0
@@ -79,7 +79,8 @@ func unknownMethod(w http.ResponseWriter) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }
 
-func serveHTTP(cfg *config.Config) {
+// ServeHTTP starts an HTTP server for the JSON REST API
+func ServeHTTP(cfg *config.Config) {
 	db, err := sqlstore.Open(cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
