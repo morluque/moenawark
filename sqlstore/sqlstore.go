@@ -42,7 +42,7 @@ func Init(dbPath string) (*sql.DB, error) {
 }
 
 func openPath(dbPath string) (*sql.DB, error) {
-	dataSourceName := fmt.Sprintf("file:%s", dbPath)
+	dataSourceName := fmt.Sprintf("file:%s?_busy_timeout=1000&_foreign_keys=1", dbPath)
 	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
@@ -74,8 +74,6 @@ func IsConstraintError(err error) bool {
 
 func create(db *sql.DB) error {
 	ddml := `
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE characters (
 	id INTEGER PRIMARY KEY NOT NULL,
 	name TEXT UNIQUE NOT NULL,

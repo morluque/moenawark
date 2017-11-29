@@ -114,7 +114,7 @@ func (u *User) Save(db *sql.Tx) error {
 }
 
 // LoadUser loads a user from database by its login.
-func LoadUser(db *sql.DB, login string) (*User, error) {
+func LoadUser(db *sql.Tx, login string) (*User, error) {
 	var id int64
 	var password, status string
 	var gameMaster bool
@@ -134,7 +134,7 @@ func LoadUser(db *sql.DB, login string) (*User, error) {
 }
 
 // AuthUser loads a user from database if the login/password match.
-func AuthUser(db *sql.DB, login string, plaintextPassword string) (*User, error) {
+func AuthUser(db *sql.Tx, login string, plaintextPassword string) (*User, error) {
 	authErr := mwkerr.New(mwkerr.AuthError, "Authentication error")
 	u, err := LoadUser(db, login)
 	if err != nil {
@@ -150,7 +150,7 @@ func AuthUser(db *sql.DB, login string, plaintextPassword string) (*User, error)
 }
 
 // HasAdmin returns true if at least one user in database is game master.
-func HasAdmin(db *sql.DB) bool {
+func HasAdmin(db *sql.Tx) bool {
 	var adminCount int
 	row := db.QueryRow("SELECT count(id) AS nbadmin FROM users WHERE game_master = 1")
 	err := row.Scan(&adminCount)

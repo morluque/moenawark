@@ -81,7 +81,7 @@ func (p *Place) Save(db *sql.Tx) error {
 }
 
 // LoadPlace loads the place at (x, y) coordinate, if it exists.
-func LoadPlace(db *sql.DB, x, y int) (*Place, error) {
+func LoadPlace(db *sql.Tx, x, y int) (*Place, error) {
 	var id int64
 	var energyProduction int
 	var name string
@@ -151,7 +151,7 @@ func (w *Wormhole) Save(db *sql.Tx) error {
 }
 
 // LoadWormholes loads wormholes that start at the given place.
-func LoadWormholes(db *sql.DB, source *Place) ([]*Wormhole, error) {
+func LoadWormholes(db *sql.Tx, source *Place) ([]*Wormhole, error) {
 	wormholes := make([]*Wormhole, 0)
 	sql := `
      SELECT w.id AS w_id,

@@ -10,10 +10,20 @@ import (
 	"regexp"
 )
 
-type resourceMethod0 func(*sql.DB, http.ResponseWriter, *http.Request)
-type resourceMethod1 func(*sql.DB, http.ResponseWriter, *http.Request, string)
-type resourceMethodUpdate0 func(*sql.Tx, http.ResponseWriter, *http.Request)
-type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string)
+type httpError struct {
+	code    int
+	message string
+	err     error
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("%d: %s", e.code, e.message)
+}
+
+type resourceMethod0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
+type resourceMethod1 func(*sql.Tx, http.ResponseWriter, *http.Request, string) *httpError
+type resourceMethodUpdate0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
+type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string) *httpError
 
 type resourceHandler struct {
 	listMethod   resourceMethod0
@@ -37,46 +47,69 @@ func (h resourceHandler) register(m *http.ServeMux, db *sql.DB, prefix string) {
 			return
 		}
 
-		// Handle read-only actions
-		if r.Method == http.MethodGet {
-			if len(subMatches[1]) == 0 {
-				h.listMethod(db, w, r)
-			} else {
-				h.getMethod(db, w, r, subMatches[1])
-			}
-			return
-		}
-
 		// Open DB transaction for create/update/delete
-		tx, err := db.Begin()
+		tx, err := db.BeginTx(r.Context(), nil)
 		if err != nil {
-			appError(w, err)
+			sendError(w, appError(err))
 			return
 		}
+		// The h.*Method() will take care to commit tx if they write to w; else
+		// we assume an error occured and we rollback any work.
+		defer tx.Rollback()
+
+		var herr *httpError
+		log.Printf("debug: method=%s", r.Method)
 		switch r.Method {
+		case http.MethodGet:
+			if len(subMatches[1]) == 0 {
+				herr = h.listMethod(tx, w, r)
+			} else {
+				herr = h.getMethod(tx, w, r, subMatches[1])
+			}
 		case http.MethodPost:
-			h.postMethod(tx, w, r)
+			herr = h.postMethod(tx, w, r)
 		case http.MethodPut:
-			h.putMethod(tx, w, r, subMatches[1])
+			herr = h.putMethod(tx, w, r, subMatches[1])
 		case http.MethodDelete:
-			h.deleteMethod(tx, w, r, subMatches[1])
+			herr = h.deleteMethod(tx, w, r, subMatches[1])
 		default:
-			unknownMethod(w)
+			herr = unknownMethodError(r.Method)
+		}
+		if herr != nil {
+			// We are responsible to send the HTTP error to the client
+			log.Printf("info: %d %s", herr.code, herr.message)
+			sendError(w, herr)
+			return
 		}
 	}
 	m.HandleFunc(prefix, handlerFunc)
 }
 
-func appError(w http.ResponseWriter, err error) {
-	http.Error(w, fmt.Sprintf("error: %s", err), http.StatusInternalServerError)
+func sendError(w http.ResponseWriter, e *httpError) {
+	http.Error(w, e.message, e.code)
 }
 
-func notImplemented(w http.ResponseWriter) {
-	http.Error(w, "Not (yet) Implemented", http.StatusInternalServerError)
+func notFoundError() *httpError {
+	return &httpError{code: 404, message: "Resource not found"}
 }
 
-func unknownMethod(w http.ResponseWriter) {
-	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+func appError(err error) *httpError {
+	log.Printf("error: %s", err.Error())
+	return &httpError{code: 500, message: "Internal server error"}
+}
+
+func userError(err error) *httpError {
+	log.Printf("warning: %s", err.Error())
+	return &httpError{code: 400, message: "Bad request"}
+}
+
+func authError(err error) *httpError {
+	log.Printf("auth error: %s", err.Error())
+	return &httpError{code: 403, message: "Forbidden"}
+}
+
+func unknownMethodError(method string) *httpError {
+	return &httpError{code: 405, message: fmt.Sprintf("Method not allowed: %s", method)}
 }
 
 // ServeHTTP starts an HTTP server for the JSON REST API
@@ -91,5 +124,9 @@ func ServeHTTP(cfg *config.Config) {
 
 	uh := newUserHandler()
 	uh.register(hmux, db, "/user/")
+
+	ah := newAuthHandler()
+	ah.register(hmux, db, "/auth/")
+
 	http.ListenAndServe(cfg.HTTPListen, hmux)
 }

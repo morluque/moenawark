@@ -63,7 +63,7 @@ func (c *Character) Save(db *sql.Tx) error {
 }
 
 // LoadCharacter fetches a character from databse by it's name.
-func LoadCharacter(db *sql.DB, name string) (*Character, error) {
+func LoadCharacter(db *sql.Tx, name string) (*Character, error) {
 	var id int64
 	var power, actions uint
 	row := db.QueryRow("SELECT id, power, actions FROM characters WHERE name = $1", name)
@@ -75,7 +75,7 @@ func LoadCharacter(db *sql.DB, name string) (*Character, error) {
 }
 
 // LoadCharacterByID fetches a character from database by it's ID.
-func LoadCharacterByID(db *sql.DB, id int64) (*Character, error) {
+func LoadCharacterByID(db *sql.Tx, id int64) (*Character, error) {
 	var name string
 	var power, actions uint
 	row := db.QueryRow("SELECT name, power, actions FROM characters WHERE id = $1", id)

@@ -8,40 +8,39 @@ import (
 	"net/http"
 )
 
-func userGet(db *sql.DB, w http.ResponseWriter, r *http.Request, login string) {
+func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
 	user, err := model.LoadUser(db, login)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.NotFound(w, r)
-			return
+			return notFoundError()
 		}
-		appError(w, err)
-		return
+		return appError(err)
 	}
 	userJSON, err := json.Marshal(user)
 	if err != nil {
-		appError(w, err)
-		return
+		return appError(err)
 	}
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
 	fmt.Fprint(w, string(userJSON))
+
+	return nil
 }
 
-func userList(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+func userList(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
+	return unknownMethodError(r.Method)
 }
 
-func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
+	return unknownMethodError(r.Method)
 }
 
-func userUpdate(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) {
-	notImplemented(w)
+func userUpdate(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
+	return unknownMethodError(r.Method)
 }
 
-func userDelete(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) {
-	notImplemented(w)
+func userDelete(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
+	return unknownMethodError(r.Method)
 }
 
 func newUserHandler() resourceHandler {
