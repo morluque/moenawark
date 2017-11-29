@@ -14,7 +14,7 @@ import (
 
 const (
 	// TokenLength is the length in bytes of the security token
-	TokenLength = 16
+	TokenLength = 32
 	// TokenHeader is the name of the header used to communicate the security token
 	TokenHeader = "X-Auth-Token"
 )
@@ -34,19 +34,22 @@ func isExpiredSession(now time.Time, s session) bool {
 	return now.After(s.since.Add(sessionDuration))
 }
 
-func createSession(user *model.User) {
+func createSession(user *model.User) string {
 	reapSessions()
 	token := createAuthToken()
 	s := session{user: user, since: time.Now()}
 	sessionLock.Lock()
 	defer sessionLock.Unlock()
 	sessionList[token] = s
+
+	return token
 }
 
 func getSession(token string) (*session, error) {
 	sessionLock.RLock()
 	defer sessionLock.RUnlock()
-	if s, ok := sessionList[token]; !ok {
+	s, ok := sessionList[token]
+	if !ok {
 		return nil, fmt.Errorf("no such session %s", token)
 	}
 	return &s, nil
@@ -128,11 +131,11 @@ func authList(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	login := r.PostFormValue("login")
 	password := r.PostFormValue("password")
-	_, err := model.AuthUser(db, login, password)
+	user, err := model.AuthUser(db, login, password)
 	if err != nil {
 		return authError(err)
 	}
-	token := createAuthToken()
+	token := createSession(user)
 	headers := w.Header()
 	headers[TokenHeader] = []string{token}
 	log.Printf("info: user %s sucessfully logged in", login)

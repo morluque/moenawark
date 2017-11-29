@@ -9,14 +9,21 @@ import (
 )
 
 func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
-	user, err := model.LoadUser(db, login)
+	user, err := getAuthUser(r)
+	if err != nil {
+		return authError(err)
+	}
+	if user.Login != login && !user.GameMaster {
+		return authError(fmt.Errorf("can only get info about yourself"))
+	}
+	u, err := model.LoadUser(db, login)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return notFoundError()
 		}
 		return appError(err)
 	}
-	userJSON, err := json.Marshal(user)
+	userJSON, err := json.Marshal(u)
 	if err != nil {
 		return appError(err)
 	}
