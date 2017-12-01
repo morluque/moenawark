@@ -8,9 +8,9 @@ import (
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
+	"github.com/morluque/moenawark/server"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
-	"github.com/morluque/moenawark/server"
 	"log"
 	"os"
 )
@@ -28,13 +28,23 @@ func main() {
 	}
 	action := os.Args[1]
 
+	opts := flag.NewFlagSet("moenawark", flag.PanicOnError)
+	var configPath = opts.String("cfg", "moenawark.toml", "path to TOML config file")
+	opts.Parse(os.Args[2:])
+	log.Printf("config path: %s\n", *configPath)
+
+	_, err := config.Parse(*configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	switch action {
 	case "initdb":
 		initDB()
 	case "inituniverse":
 		initUniverse()
 	case "server":
-		server.ServeHTTP(loadConfig())
+		server.ServeHTTP()
 		log.Print("One day, a server will be started here. But not today.")
 	case "version":
 		fmt.Printf("Moenawark %s build %s\n", Version, BuildDate)
@@ -64,49 +74,24 @@ func readAdminUser() (*model.User, error) {
 	return u, nil
 }
 
-func loadConfig() *config.Config {
-	opts := flag.NewFlagSet("moenawark", flag.PanicOnError)
-	var configPath = opts.String("cfg", "moenawark.toml", "path to TOML config file")
-	opts.Parse(os.Args[2:])
-	log.Printf("config path: %s\n", *configPath)
-
-	conf, err := config.Parse(*configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(conf.DBPath) <= 0 {
-		conf.DBPath = "data/db/moenawark.sqlite"
-	}
-
-	return conf
-}
-
 func initUniverse() {
-	conf := loadConfig()
-
-	var dbPath string
-	if len(conf.DBPath) > 0 {
-		dbPath = conf.DBPath
-	} else {
-		dbPath = "data/db/moenawark.sqlite"
-	}
-	db, err := sqlstore.Open(dbPath)
+	db, err := sqlstore.Open(config.Cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
+	ucfg := config.Cfg.Universe
 	cfg := universe.Config{
-		Radius:       1000,
-		MinPlaceDist: 80,
-		MaxWayLength: 150,
-		MarkovGen:    markov.Load(os.Stdin, 3),
+		Radius:       float64(ucfg.Radius),
+		MinPlaceDist: float64(ucfg.MinPlaceDist),
+		MaxWayLength: float64(ucfg.MaxWayLength),
+		MarkovGen:    markov.Load(os.Stdin, ucfg.MarkovPrefixLength),
 		RegionConfig: universe.RegionConfig{
-			Count:        5,
-			Radius:       120,
-			MinPlaceDist: 20,
-			MaxWayLength: 40,
+			Count:        ucfg.Region.Count,
+			Radius:       float64(ucfg.Region.Radius),
+			MinPlaceDist: float64(ucfg.Region.MinPlaceDist),
+			MaxWayLength: float64(ucfg.Region.MaxWayLength),
 		},
 	}
 	tx, err := db.Begin()
@@ -124,15 +109,7 @@ func initUniverse() {
 }
 
 func initDB() {
-	conf := loadConfig()
-
-	var dbPath string
-	if len(conf.DBPath) > 0 {
-		dbPath = conf.DBPath
-	} else {
-		dbPath = "data/db/moenawark.sqlite"
-	}
-	db, err := sqlstore.Init(dbPath)
+	db, err := sqlstore.Init(config.Cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
 	}

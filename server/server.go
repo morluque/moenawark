@@ -4,10 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/morluque/moenawark/config"
+	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
 	"log"
 	"net/http"
 	"regexp"
+	"sync"
+	"time"
 )
 
 type httpError struct {
@@ -33,14 +36,45 @@ type resourceHandler struct {
 	deleteMethod resourceMethodUpdate1
 }
 
-func (h resourceHandler) register(m *http.ServeMux, db *sql.DB, prefix string) {
-	reStr := fmt.Sprintf("^%s([^/]+)?$", prefix)
+type session struct {
+	user  *model.User
+	since time.Time
+}
+
+type apiServerV1 struct {
+	TokenLength     int
+	TokenHeader     string
+	SessionDuration time.Duration
+	apiPrefix       string
+	apiVersion      string
+	sessionLock     sync.RWMutex
+	sessionList     map[string]session
+	db              *sql.DB
+	handlerFuncs    map[string]http.HandlerFunc
+}
+
+func newapiServerV1() *apiServerV1 {
+	srv := new(apiServerV1)
+	srv.apiVersion = "v1"
+	srv.TokenLength = config.Cfg.Auth.TokenLength
+	srv.TokenHeader = config.Cfg.Auth.TokenHeader
+	srv.SessionDuration = config.Cfg.Auth.SessionDuration.Duration
+	srv.sessionLock = sync.RWMutex{}
+	srv.sessionList = make(map[string]session)
+	srv.handlerFuncs = make(map[string]http.HandlerFunc)
+
+	return srv
+}
+
+func (srv *apiServerV1) register(prefix string, h resourceHandler) {
+	fullPrefix := fmt.Sprintf("%s/%s/%s", config.Cfg.APIPrefix, srv.apiVersion, prefix)
+	reStr := fmt.Sprintf("^%s([^/]+)?$", fullPrefix)
 	re, err := regexp.Compile(reStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+	srv.handlerFuncs[prefix] = func(w http.ResponseWriter, r *http.Request) {
 		subMatches := re.FindStringSubmatch(r.URL.Path)
 		if subMatches == nil {
 			http.NotFound(w, r)
@@ -48,7 +82,7 @@ func (h resourceHandler) register(m *http.ServeMux, db *sql.DB, prefix string) {
 		}
 
 		// Open DB transaction for create/update/delete
-		tx, err := db.BeginTx(r.Context(), nil)
+		tx, err := srv.db.BeginTx(r.Context(), nil)
 		if err != nil {
 			sendError(w, appError(err))
 			return
@@ -82,7 +116,27 @@ func (h resourceHandler) register(m *http.ServeMux, db *sql.DB, prefix string) {
 			return
 		}
 	}
-	m.HandleFunc(prefix, handlerFunc)
+}
+
+// ServeHTTP starts an HTTP server for the JSON REST API
+func ServeHTTP() {
+	srv1 := newapiServerV1()
+	db, err := sqlstore.Open(config.Cfg.DBPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	srv1.db = db
+
+	srv1.register("user", newUserHandler())
+	srv1.register("auth", newAuthHandler())
+
+	hmux := http.NewServeMux()
+	for prefix, handlerFunc := range srv1.handlerFuncs {
+		hmux.HandleFunc(prefix, handlerFunc)
+	}
+
+	http.ListenAndServe(config.Cfg.HTTPListen, hmux)
 }
 
 func sendError(w http.ResponseWriter, e *httpError) {
@@ -110,23 +164,4 @@ func authError(err error) *httpError {
 
 func unknownMethodError(method string) *httpError {
 	return &httpError{code: 405, message: fmt.Sprintf("Method not allowed: %s", method)}
-}
-
-// ServeHTTP starts an HTTP server for the JSON REST API
-func ServeHTTP(cfg *config.Config) {
-	db, err := sqlstore.Open(cfg.DBPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	hmux := http.NewServeMux()
-
-	uh := newUserHandler()
-	uh.register(hmux, db, "/user/")
-
-	ah := newAuthHandler()
-	ah.register(hmux, db, "/auth/")
-
-	http.ListenAndServe(cfg.HTTPListen, hmux)
 }

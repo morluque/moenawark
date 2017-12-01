@@ -19,11 +19,6 @@ const (
 	TokenHeader = "X-Auth-Token"
 )
 
-type session struct {
-	user  *model.User
-	since time.Time
-}
-
 var (
 	sessionList     = make(map[string]session)
 	sessionLock     = sync.RWMutex{}
