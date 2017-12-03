@@ -10,7 +10,7 @@ import (
 // User represents a user of the game.
 type User struct {
 	ID         int64      `json:"id"`
-	Character  *Character `json:"character",omitempty`
+	Character  *Character `json:"character,moitempty"`
 	Login      string     `json:"login"`
 	password   string     `json:""`
 	Status     string     `json:"status"`
