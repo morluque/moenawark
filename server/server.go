@@ -87,7 +87,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		log.Fatal(err)
 	}
 
-	srv.handlerFuncs[prefix] = func(w http.ResponseWriter, r *http.Request) {
+	srv.handlerFuncs[fullPrefix] = func(w http.ResponseWriter, r *http.Request) {
 		subMatches := re.FindStringSubmatch(r.URL.Path)
 		if subMatches == nil {
 			http.NotFound(w, r)
