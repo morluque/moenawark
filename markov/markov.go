@@ -76,7 +76,7 @@ func analyzeWords(prefixLen int, words []string) *Chains {
 	m := newMarkovChains(prefixLen)
 	for n, w := range words {
 		if !utf8.ValidString(w) {
-			log.Fatal("invalid UTF8 string %q at line %d", w, n+1)
+			log.Fatalf("invalid UTF8 string %q at line %d", w, n+1)
 			break
 		}
 		if len(w) <= m.prefixLen {
