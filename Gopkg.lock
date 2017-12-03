@@ -2,16 +2,16 @@
 
 
 [[projects]]
-  name = "github.com/BurntSushi/toml"
-  packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
-
-[[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
   revision = "ed69081a91fd053f17672236b0dd52ba7485e1a3"
   version = "v1.4.0"
+
+[[projects]]
+  name = "github.com/pelletier/go-toml"
+  packages = ["."]
+  revision = "16398bac157da96aa88f98a2df640c7f32af1da2"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -28,6 +28,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "361e71f122eea95b877055156900140aacd4e62585ad9efd5a88fa2f50fbb3ee"
+  inputs-digest = "9d6eb01caf7e52e4239239b395e670059e16738888390cd064ca881488668c72"
   solver-name = "gps-cdcl"
   solver-version = 1

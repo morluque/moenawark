@@ -22,8 +22,8 @@
 
 
 [[constraint]]
-  name = "github.com/BurntSushi/toml"
-  version = "0.3.0"
+  name = "github.com/pelletier/go-toml"
+  version = "1.0.0"
 
 [[constraint]]
   name = "github.com/mattn/go-sqlite3"

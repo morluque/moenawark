@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"log"
 	"os"
 	"time"
@@ -83,7 +83,11 @@ func Parse(path string) (*Config, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return conf, nil
 	}
-	if _, err := toml.DecodeFile(path, &conf); err != nil {
+	tree, err := toml.LoadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if err = tree.Unmarshal(&conf); err != nil {
 		return nil, err
 	}
 
