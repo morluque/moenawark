@@ -108,7 +108,7 @@ func getDefaultInt(t reflect.Type, fieldName string) int {
 	x := getDefault(t, fieldName)
 	i, err := strconv.Atoi(x)
 	if err != nil {
-		log.Fatal("default value of field %s is not an int", fieldName)
+		log.Fatalf("default value of field %s is not an int", fieldName)
 	}
 	return i
 }
