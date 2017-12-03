@@ -2,20 +2,8 @@ package config
 
 import (
 	"github.com/pelletier/go-toml"
-	"log"
 	"os"
-	"time"
 )
-
-type duration struct {
-	time.Duration
-}
-
-func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
-}
 
 // Config holds moenawark's configuration
 type Config struct {
@@ -27,9 +15,9 @@ type Config struct {
 }
 
 type authInfo struct {
-	TokenLength     int      `toml:"token_length"`
-	TokenHeader     string   `toml:"token_header"`
-	SessionDuration duration `toml:"session_duration"`
+	TokenLength     int    `toml:"token_length"`
+	TokenHeader     string `toml:"token_header"`
+	SessionDuration string `toml:"session_duration"`
 }
 
 type universeInfo struct {
@@ -54,10 +42,6 @@ var (
 
 // Parse loads the TOML configuration file into a Config struct.
 func Parse(path string) (*Config, error) {
-	sessionDuration, err := time.ParseDuration("1h")
-	if err != nil {
-		log.Fatal("WTFBBQ!")
-	}
 	conf := new(Config)
 	conf.DBPath = "./data/db/moenawark.sqlite"
 	conf.HTTPListen = "localhost:8080"
@@ -65,7 +49,7 @@ func Parse(path string) (*Config, error) {
 	conf.Auth = authInfo{
 		TokenLength:     32,
 		TokenHeader:     "X-Auth-Token",
-		SessionDuration: duration{Duration: sessionDuration},
+		SessionDuration: "1h",
 	}
 	conf.Universe = universeInfo{
 		Radius:             1000,
@@ -80,14 +64,17 @@ func Parse(path string) (*Config, error) {
 		},
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return conf, nil
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return conf, nil
+		}
+		return nil, err
 	}
 	tree, err := toml.LoadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if err = tree.Unmarshal(&conf); err != nil {
+	if err = tree.Unmarshal(conf); err != nil {
 		return nil, err
 	}
 
