@@ -65,7 +65,11 @@ func newapiServerV1() *apiServerV1 {
 	srv.TokenHeader = config.Cfg.Auth.TokenHeader
 	d, err := time.ParseDuration(config.Cfg.Auth.SessionDuration)
 	if err != nil {
-		log.Fatal("Error in config file, could not parse SessionDuration: %s", err.Error())
+		log.Fatalf(
+			"Error in config file, could not parse SessionDuration (%s): %s",
+			config.Cfg.Auth.SessionDuration,
+			err.Error(),
+		)
 	}
 	srv.SessionDuration = d
 	srv.sessionLock = sync.RWMutex{}
