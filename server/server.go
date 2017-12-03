@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+const (
+	// MaxBodyLength is the maximum body size in bytes that a client can send us.
+	MaxBodyLength = 1024*1024
+)
+
 type httpError struct {
 	code    int
 	message string
