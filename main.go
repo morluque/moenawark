@@ -36,32 +36,31 @@ func init() {
 	log = loglevel.New("main", loglevel.Debug)
 }
 
-func handleSignals(configPath *string) {
+func handleSignals(reloadFunc func()) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	for {
 		s := <-c
 		if s == syscall.SIGUSR1 {
-			err := config.LoadFile(*configPath)
-			if err != nil {
-				log.Errorf(err.Error())
-			}
-			setupLogLevels()
+			reloadFunc()
 		}
 	}
 }
 
-func setupLogLevels() {
-	log.Infof("reloading log levels from configuration")
-	// alphabetical order
-	markov.LogLevel(config.Get("loglevel.markov"))
+func reloadConfig(path string) {
+	log.Infof("reloading configuration")
+	err := config.LoadFile(path)
+	if err != nil {
+		log.Errorf(err.Error())
+	}
 	log.SetLevelName(config.Get("loglevel.main"))
-	model.LogLevel(config.Get("loglevel.model"))
-	mwkerr.LogLevel(config.Get("loglevel.mwkerr"))
-	password.LogLevel(config.Get("loglevel.password"))
-	server.LogLevel(config.Get("loglevel.server"))
-	sqlstore.LogLevel(config.Get("loglevel.sqlstore"))
-	universe.LogLevel(config.Get("loglevel.universe"))
+	server.ReloadConfig()
+	markov.ReloadConfig()
+	model.ReloadConfig()
+	mwkerr.ReloadConfig()
+	password.ReloadConfig()
+	sqlstore.ReloadConfig()
+	universe.ReloadConfig()
 }
 
 func main() {
@@ -75,12 +74,10 @@ func main() {
 	opts.Parse(os.Args[2:])
 	log.Infof("config path: %s\n", *configPath)
 
-	err := config.LoadFile(*configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	setupLogLevels()
-	go handleSignals(configPath)
+	reloadConfig(*configPath)
+	go handleSignals(func() {
+		reloadConfig(*configPath)
+	})
 
 	switch action {
 	case "initdb":

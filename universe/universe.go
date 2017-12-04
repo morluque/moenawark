@@ -6,6 +6,7 @@ package universe
 import (
 	"database/sql"
 	"fmt"
+	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
@@ -46,9 +47,9 @@ func init() {
 	log = loglevel.New("universe", loglevel.Debug)
 }
 
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(l string) {
-	log.SetLevelName(l)
+// ReloadConfig performs required actions to reload all dynamic config.
+func ReloadConfig() {
+	log.SetLevelName(config.Get("loglevel.universe"))
 }
 
 func newUniverse(cfg Config) *Universe {

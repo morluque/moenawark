@@ -7,6 +7,7 @@ package password
 
 import (
 	"encoding/hex"
+	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,9 +18,9 @@ func init() {
 	log = loglevel.New("password", loglevel.Debug)
 }
 
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(level string) {
-	log.SetLevelName(level)
+// ReloadConfig performs required actions to reload all dynamic config.
+func ReloadConfig() {
+	log.SetLevelName(config.Get("loglevel.password"))
 }
 
 // Encode transforms a plaintext password into an unrecoverable hash.

@@ -4,6 +4,7 @@ Package model holds the model objects for Moenawark.
 package model
 
 import (
+	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
 )
 
@@ -13,7 +14,7 @@ func init() {
 	log = loglevel.New("model", loglevel.Debug)
 }
 
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(level string) {
-	log.SetLevelName(level)
+// ReloadConfig performs required actions to reload all dynamic config.
+func ReloadConfig() {
+	log.SetLevelName(config.Get("loglevel.model"))
 }

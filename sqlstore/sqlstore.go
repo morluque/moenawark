@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	sqlite3 "github.com/mattn/go-sqlite3"
+	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/mwkerr"
 	"os"
@@ -18,9 +19,9 @@ func init() {
 	log = loglevel.New("sqlstore", loglevel.Debug)
 }
 
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(level string) {
-	log.SetLevelName(level)
+// ReloadConfig performs required actions to reload all dynamic config.
+func ReloadConfig() {
+	log.SetLevelName(config.Get("loglevel.sqlstore"))
 }
 
 // Open returns a new database connection.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/model"
 	"net/http"
 	"sync"
@@ -23,6 +24,18 @@ var (
 	sessionLock     = sync.RWMutex{}
 	sessionDuration = time.Hour * 2
 )
+
+func setSessionDuration() {
+	str := config.Get("auth.session_duration")
+	d, err := time.ParseDuration(str)
+	if err != nil {
+		log.Errorf("invalid session duration %s, keeping previous value", str)
+		return
+	}
+	sessionLock.Lock()
+	defer sessionLock.Unlock()
+	sessionDuration = d
+}
 
 func isExpiredSession(now time.Time, s session) bool {
 	return now.After(s.since.Add(sessionDuration))

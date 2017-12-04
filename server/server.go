@@ -67,9 +67,10 @@ func init() {
 	log = loglevel.New("server", loglevel.Debug)
 }
 
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(level string) {
-	log.SetLevelName(level)
+// ReloadConfig performs required actions to reload all dynamic config.
+func ReloadConfig() {
+	log.SetLevelName(config.Get("loglevel.server"))
+	setSessionDuration()
 }
 
 func newapiServerV1() *apiServerV1 {
