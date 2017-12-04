@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/password"
 	"github.com/morluque/moenawark/sqlstore"
@@ -10,7 +11,7 @@ import (
 // User represents a user of the game.
 type User struct {
 	ID         int64      `json:"id"`
-	Character  *Character `json:"character,moitempty"`
+	Character  *Character `json:"character,omitempty"`
 	Login      string     `json:"login"`
 	password   string     `json:""`
 	Status     string     `json:"status"`
@@ -111,6 +112,46 @@ func (u *User) Save(db *sql.Tx) error {
 		return err
 	}
 	return nil
+}
+
+// ListUsers loads a list of users from database with pagination.
+func ListUsers(db *sql.Tx, first, count uint) ([]User, error) {
+	users := make([]User, count)
+	q := fmt.Sprintf(`
+	 SELECT id, login, status, game_master, character_id
+	   FROM users
+	SORT BY id
+	 LIMIT %d OFFSET %d`, count, first)
+	rows, err := db.Query(q)
+	if err != nil {
+		return users, err
+	}
+	defer rows.Close()
+
+	i := 0
+	for rows.Next() {
+		var id int64
+		var login, status string
+		var gameMaster bool
+		var characterID sql.NullInt64
+		err = rows.Scan(&id, &login, &status, &gameMaster, &characterID)
+		if err != nil {
+			return users, err
+		}
+		var c *Character
+		if characterID.Valid {
+			char, _ := LoadCharacterByID(db, characterID.Int64)
+			c = char
+		}
+		users[i] = User{ID: id, Login: login, Status: status, GameMaster: gameMaster, Character: c}
+		i++
+	}
+	err = rows.Err()
+	if err != nil {
+		return users, err
+	}
+	users = users[0:i]
+	return users, nil
 }
 
 // LoadUser loads a user from database by its login.

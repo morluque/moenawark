@@ -7,6 +7,7 @@ import (
 	"github.com/morluque/moenawark/model"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
@@ -35,8 +36,50 @@ func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *
 	return nil
 }
 
+func userListGetLimit(r *http.Request) (uint, uint) {
+	var (
+		start uint
+		count uint = 100
+	)
+	startStr := r.FormValue("start")
+	if len(startStr) <= 0 {
+		i, err := strconv.Atoi(startStr)
+		if err == nil && i >= 0 {
+			start = uint(i)
+		}
+	}
+	countStr := r.FormValue("count")
+	if len(countStr) <= 0 {
+		i, err := strconv.Atoi(countStr)
+		if err == nil && i > 0 {
+			count = uint(i)
+		}
+	}
+	return start, count
+}
+
 func userList(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
-	return unknownMethodError(r.Method)
+	user, err := getAuthUser(r)
+	if err != nil {
+		return authError(err)
+	}
+	if !user.GameMaster {
+		return authError(fmt.Errorf("Only game masters can list all users"))
+	}
+	start, count := userListGetLimit(r)
+	users, err := model.ListUsers(db, start, count)
+	if err != nil {
+		return appError(err)
+	}
+	userJSON, err := json.Marshal(users)
+	if err != nil {
+		return appError(err)
+	}
+	headers := w.Header()
+	headers.Add("Content-Type", "application/json")
+	fmt.Fprint(w, string(userJSON))
+
+	return nil
 }
 
 type userCreateParams struct {

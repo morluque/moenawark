@@ -80,7 +80,7 @@ func newapiServerV1() *apiServerV1 {
 }
 
 func (srv *apiServerV1) register(prefix string, h resourceHandler) {
-	fullPrefix := fmt.Sprintf("%s/%s/%s", config.Cfg.APIPrefix, srv.apiVersion, prefix)
+	fullPrefix := fmt.Sprintf("%s/%s/%s/", config.Cfg.APIPrefix, srv.apiVersion, prefix)
 	reStr := fmt.Sprintf("^%s([^/]+)?$", fullPrefix)
 	re, err := regexp.Compile(reStr)
 	if err != nil {
@@ -105,7 +105,6 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		defer tx.Rollback()
 
 		var herr *httpError
-		log.Printf("debug: method=%s", r.Method)
 		switch r.Method {
 		case http.MethodGet:
 			if len(subMatches[1]) == 0 {
