@@ -101,7 +101,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 			return
 		}
 		// The h.*Method() will take care to commit tx if they write to w; else
-		// we assume an error occured and we rollback any work.
+		// we assume an error occurred and we rollback any work.
 		defer tx.Rollback()
 
 		var herr *httpError

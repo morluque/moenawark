@@ -133,7 +133,7 @@ func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	token := createSession(user)
 	headers := w.Header()
 	headers[TokenHeader] = []string{token}
-	log.Printf("info: user %s sucessfully logged in", login)
+	log.Printf("info: user %s successfully logged in", login)
 	return nil
 }
 
