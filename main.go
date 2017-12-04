@@ -20,6 +20,8 @@ import (
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -32,6 +34,21 @@ var (
 
 func init() {
 	log = loglevel.New("main", loglevel.Debug)
+}
+
+func handleSignals(configPath *string) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR1)
+	for {
+		s := <-c
+		if s == syscall.SIGUSR1 {
+			err := config.LoadFile(*configPath)
+			if err != nil {
+				log.Errorf(err.Error())
+			}
+			setupLogLevels()
+		}
+	}
 }
 
 func setupLogLevels() {
@@ -63,6 +80,7 @@ func main() {
 		log.Fatal(err)
 	}
 	setupLogLevels()
+	go handleSignals(configPath)
 
 	switch action {
 	case "initdb":
