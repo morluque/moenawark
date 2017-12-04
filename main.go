@@ -6,12 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/morluque/moenawark/config"
+	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/server"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
-	"log"
 	"os"
 )
 
@@ -20,7 +20,12 @@ var (
 	Version = "dev"
 	// BuildDate of Moenawark
 	BuildDate = "today"
+	log       *loglevel.Logger
 )
+
+func init() {
+	log = loglevel.New("main", loglevel.Debug)
+}
 
 func main() {
 	if len(os.Args) <= 1 {
@@ -31,7 +36,7 @@ func main() {
 	opts := flag.NewFlagSet("moenawark", flag.PanicOnError)
 	var configPath = opts.String("cfg", "moenawark.toml", "path to TOML config file")
 	opts.Parse(os.Args[2:])
-	log.Printf("config path: %s\n", *configPath)
+	log.Infof("config path: %s\n", *configPath)
 
 	_, err := config.Parse(*configPath)
 	if err != nil {
@@ -45,11 +50,11 @@ func main() {
 		initUniverse()
 	case "server":
 		server.ServeHTTP()
-		log.Print("One day, a server will be started here. But not today.")
+		log.Infof("One day, a server will be started here. But not today.")
 	case "version":
 		fmt.Printf("Moenawark %s build %s\n", Version, BuildDate)
 	default:
-		log.Fatalf("Unknown action %s", action)
+		log.Fatal("Unknown action %s", action)
 	}
 }
 
@@ -130,7 +135,7 @@ func initDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Created admin user %s", admin.Login)
+	log.Infof("Created admin user %s", admin.Login)
 
 	data, err := json.Marshal(admin)
 	if err != nil {

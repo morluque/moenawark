@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/morluque/moenawark/config"
+	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
-	"log"
 	"net/http"
 	"regexp"
 	"sync"
@@ -56,6 +56,17 @@ type apiServerV1 struct {
 	sessionList     map[string]session
 	db              *sql.DB
 	handlerFuncs    map[string]http.HandlerFunc
+}
+
+var log *loglevel.Logger
+
+func init() {
+	log = loglevel.New("server", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(level loglevel.Level) {
+	log.SetLevel(level)
 }
 
 func newapiServerV1() *apiServerV1 {
@@ -123,7 +134,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		}
 		if herr != nil {
 			// We are responsible to send the HTTP error to the client
-			log.Printf("info: %d %s", herr.code, herr.message)
+			log.Infof("http error %d %s", herr.code, herr.message)
 			sendError(w, herr)
 			return
 		}
@@ -160,17 +171,17 @@ func notFoundError() *httpError {
 }
 
 func appError(err error) *httpError {
-	log.Printf("error: %s", err.Error())
+	log.Errorf("%s", err.Error())
 	return &httpError{code: 500, message: "Internal server error"}
 }
 
 func userError(err error) *httpError {
-	log.Printf("warning: %s", err.Error())
+	log.Infof("%s", err.Error())
 	return &httpError{code: 400, message: "Bad request"}
 }
 
 func authError(err error) *httpError {
-	log.Printf("auth error: %s", err.Error())
+	log.Warnf("auth error: %s", err.Error())
 	return &httpError{code: 403, message: "Forbidden"}
 }
 

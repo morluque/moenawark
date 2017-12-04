@@ -2,8 +2,8 @@ package markov
 
 import (
 	"bufio"
+	"github.com/morluque/moenawark/loglevel"
 	"io"
-	"log"
 	"math/rand"
 	"unicode/utf8"
 )
@@ -19,6 +19,17 @@ type Chains struct {
 type digraph map[rune]float64
 
 const endOfWord rune = 0
+
+var log *loglevel.Logger
+
+func init() {
+	log = loglevel.New("markov", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(level loglevel.Level) {
+	log.SetLevel(level)
+}
 
 func newMarkovChains(prefixLen int) *Chains {
 	starts := make([]string, 0)
@@ -108,7 +119,7 @@ func Load(r io.Reader, prefixLen int) *Chains {
 		words = append(words, fscanner.Text())
 	}
 	m := analyzeWords(prefixLen, words)
-	log.Printf("markov: loaded %d words", len(words))
+	log.Debugf("loaded %d words", len(words))
 	m.normalize()
 
 	return m
@@ -136,7 +147,6 @@ func (m *Chains) Generate() string {
 			n += q
 			if p <= n {
 				ru = r
-				//log.Printf("%#U, p=%f", ru, q)
 				break
 			}
 		}

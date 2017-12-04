@@ -1,8 +1,8 @@
 package config
 
 import (
+	"github.com/morluque/moenawark/loglevel"
 	"github.com/pelletier/go-toml"
-	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -41,9 +41,20 @@ type regionInfo struct {
 var (
 	// Cfg holds the global configuration used throughout Moenawark
 	Cfg Config
+	log *loglevel.Logger
 )
 
+func init() {
+	log = loglevel.New("config", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(level loglevel.Level) {
+	log.SetLevel(level)
+}
+
 func setDefaults(conf *Config) {
+	log.Debugf("setting defaults")
 	t := reflect.TypeOf(*conf)
 
 	if len(conf.DBPath) <= 0 {

@@ -3,9 +3,9 @@ package universe
 import (
 	"database/sql"
 	"fmt"
+	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
-	"log"
 	"math/rand"
 	"os"
 )
@@ -35,6 +35,17 @@ type Universe struct {
 	Places    []*model.Place
 	Wormholes []*model.Wormhole
 	names     map[string]bool
+}
+
+var log *loglevel.Logger
+
+func init() {
+	log = loglevel.New("universe", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(l loglevel.Level) {
+	log.SetLevel(l)
 }
 
 func newUniverse(cfg Config) *Universe {
@@ -124,7 +135,7 @@ func (r *Region) generatePoints(minPlaceDist float64, otherPoints []point) {
 			r.points = append(r.points, newp)
 		}
 	}
-	log.Printf("%d points generated\n", len(r.points))
+	log.Infof("%d points generated\n", len(r.points))
 }
 
 func (u *Universe) generatePoints() {
@@ -150,7 +161,7 @@ func computeDists(srcs, dsts []point, maxWayLength float64) map[segment]float64 
 			}
 		}
 	}
-	log.Printf("%d potential segments\n", len(dists))
+	log.Infof("%d potential segments\n", len(dists))
 
 	return dists
 }
@@ -164,7 +175,7 @@ func generateSegments(dists map[segment]float64, existingSegments []segment) []s
 		}
 		segments = append(segments, news)
 	}
-	log.Printf("generated %d segments\n", len(segments))
+	log.Infof("generated %d segments\n", len(segments))
 
 	return segments
 }
@@ -208,7 +219,7 @@ func (u *Universe) densifyRegions() {
 	points := make([]point, 0)
 	segments := make([]segment, 0)
 	for _, r := range u.Regions {
-		log.Printf("region [%f, %f] r%f\n", r.Center.x, r.Center.y, r.Radius)
+		log.Infof("region [%f, %f] r%f\n", r.Center.x, r.Center.y, r.Radius)
 		r.generatePoints(u.RegionConfig.MinPlaceDist, points)
 		dists := computeDists(r.points, points, u.RegionConfig.MaxWayLength)
 		r.segments = generateSegments(dists, segments)
@@ -274,7 +285,7 @@ func (u *Universe) makePlacesAndWormholes(tx *sql.Tx) error {
 			return err
 		}
 	}
-	log.Printf("Saved %d places to database\n", len(u.Places))
+	log.Infof("Saved %d places to database\n", len(u.Places))
 
 	ns := len(u.Region.segments)
 	for _, r := range u.Regions {
@@ -314,17 +325,14 @@ func (u *Universe) cleanup() {
 func Generate(cfg Config, tx *sql.Tx) *Universe {
 	u := newUniverse(cfg)
 
-	log.Printf("Computing regions... ")
+	log.Infof("Computing regions...")
 	u.generateRegions()
-	log.Printf("OK\n")
 
-	log.Printf("Generating places at least distant from %d... ", int(u.MinPlaceDist))
+	log.Infof("Generating places at least distant from %d...", int(u.MinPlaceDist))
 	u.generatePoints()
-	log.Printf("OK\n")
 
-	log.Printf("Computing ways... ")
+	log.Infof("Computing ways...")
 	u.generateSegments()
-	log.Printf("OK\n")
 
 	if err := u.makePlacesAndWormholes(tx); err != nil {
 		log.Fatal(err)

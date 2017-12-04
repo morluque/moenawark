@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/morluque/moenawark/model"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -54,7 +53,7 @@ func deleteSession(token string) {
 	sessionLock.Lock()
 	defer sessionLock.Unlock()
 	delete(sessionList, token)
-	log.Printf("debug: session %s deleted", token)
+	log.Debugf("session %s deleted", token)
 }
 
 func getExpiredTokens() []string {
@@ -83,7 +82,7 @@ func reapSessions() {
 
 func getAuthToken(r *http.Request) (*string, error) {
 	tokenHeader, ok := r.Header[TokenHeader]
-	log.Printf("debug: tokenheader=%v", tokenHeader)
+	log.Debugf("tokenheader=%v", tokenHeader)
 	if !ok {
 		return nil, fmt.Errorf("missing auth header")
 	}
@@ -115,7 +114,7 @@ func createAuthToken() string {
 }
 
 func authGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
-	log.Printf("debug: authGet got called")
+	log.Debugf("authGet got called")
 	return unknownMethodError(r.Method)
 }
 
@@ -133,7 +132,7 @@ func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	token := createSession(user)
 	headers := w.Header()
 	headers[TokenHeader] = []string{token}
-	log.Printf("info: user %s successfully logged in", login)
+	log.Infof("user %s successfully logged in", login)
 	return nil
 }
 
