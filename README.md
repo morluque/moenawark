@@ -1,5 +1,9 @@
 # moenawark
 
+[![GoDoc](https://godoc.org/github.com/morluque/moenawark?status.svg)](http://godoc.org/github.com/morluque/moenawark)
+[![license](https://img.shields.io/github/license/morluque/moenawark.svg)](https://github.com/morluque/moenawark/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/morluque/moenawark)](https://goreportcard.com/report/github.com/morluque/moenawark)
+
 Moenawark is a [play-by-post/play-by-internet](https://en.wikipedia.org/wiki/Play-by-post_role-playing_game#Play-by-internet)
 role playing game, in a space-opera settings.
 
