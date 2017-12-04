@@ -7,9 +7,20 @@ package password
 
 import (
 	"encoding/hex"
+	"github.com/morluque/moenawark/loglevel"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 )
+
+var log *loglevel.Logger
+
+func init() {
+	log = loglevel.New("password", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(level string) {
+	log.SetLevelName(level)
+}
 
 // Encode transforms a plaintext password into an unrecoverable hash.
 // Uses bcrypt currently.

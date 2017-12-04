@@ -47,8 +47,8 @@ func init() {
 }
 
 // LogLevel dynamically sets the log level for this package.
-func LogLevel(l loglevel.Level) {
-	log.SetLevel(l)
+func LogLevel(l string) {
+	log.SetLevelName(l)
 }
 
 func newUniverse(cfg Config) *Universe {

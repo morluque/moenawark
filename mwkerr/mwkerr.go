@@ -5,7 +5,10 @@ Maybe this wasn't such a good idea after all...
 */
 package mwkerr
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/morluque/moenawark/loglevel"
+)
 
 // MWKError is a game-specific error grouping a numeric code with a message.
 type MWKError struct {
@@ -29,6 +32,17 @@ const (
 	// DatabaseAlreadyInitialized signals that you can't init an existing database
 	DatabaseAlreadyInitialized
 )
+
+var log *loglevel.Logger
+
+func init() {
+	log = loglevel.New("mwkerr", loglevel.Debug)
+}
+
+// LogLevel dynamically sets the log level for this package.
+func LogLevel(level string) {
+	log.SetLevelName(level)
+}
 
 /*
 New creates a MWKError with the given code and message.

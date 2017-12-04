@@ -14,6 +14,8 @@ import (
 	"github.com/morluque/moenawark/loglevel"
 	"github.com/morluque/moenawark/markov"
 	"github.com/morluque/moenawark/model"
+	"github.com/morluque/moenawark/mwkerr"
+	"github.com/morluque/moenawark/password"
 	"github.com/morluque/moenawark/server"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
@@ -32,6 +34,19 @@ func init() {
 	log = loglevel.New("main", loglevel.Debug)
 }
 
+func setupLogLevels() {
+	log.Infof("reloading log levels from configuration")
+	// alphabetical order
+	markov.LogLevel(config.Get("loglevel.markov"))
+	log.SetLevelName(config.Get("loglevel.main"))
+	model.LogLevel(config.Get("loglevel.model"))
+	mwkerr.LogLevel(config.Get("loglevel.mwkerr"))
+	password.LogLevel(config.Get("loglevel.password"))
+	server.LogLevel(config.Get("loglevel.server"))
+	sqlstore.LogLevel(config.Get("loglevel.sqlstore"))
+	universe.LogLevel(config.Get("loglevel.universe"))
+}
+
 func main() {
 	if len(os.Args) <= 1 {
 		log.Fatal("Missing first argument <action>")
@@ -43,10 +58,11 @@ func main() {
 	opts.Parse(os.Args[2:])
 	log.Infof("config path: %s\n", *configPath)
 
-	_, err := config.Parse(*configPath)
+	err := config.LoadFile(*configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	setupLogLevels()
 
 	switch action {
 	case "initdb":
@@ -85,23 +101,22 @@ func readAdminUser() (*model.User, error) {
 }
 
 func initUniverse() {
-	db, err := sqlstore.Open(config.Cfg.DBPath)
+	db, err := sqlstore.Open(config.Get("db_path"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	ucfg := config.Cfg.Universe
 	cfg := universe.Config{
-		Radius:       float64(ucfg.Radius),
-		MinPlaceDist: float64(ucfg.MinPlaceDist),
-		MaxWayLength: float64(ucfg.MaxWayLength),
-		MarkovGen:    markov.Load(os.Stdin, ucfg.MarkovPrefixLength),
+		Radius:       float64(config.GetInt("universe.radius")),
+		MinPlaceDist: float64(config.GetInt("universe.min_place_dist")),
+		MaxWayLength: float64(config.GetInt("universe.max_way_length")),
+		MarkovGen:    markov.Load(os.Stdin, config.GetInt("universe.markov_prefix_length")),
 		RegionConfig: universe.RegionConfig{
-			Count:        ucfg.Region.Count,
-			Radius:       float64(ucfg.Region.Radius),
-			MinPlaceDist: float64(ucfg.Region.MinPlaceDist),
-			MaxWayLength: float64(ucfg.Region.MaxWayLength),
+			Count:        config.GetInt("universe.region.count"),
+			Radius:       float64(config.GetInt("universe.region.radius")),
+			MinPlaceDist: float64(config.GetInt("universe.region.min_place_dist")),
+			MaxWayLength: float64(config.GetInt("universe.region.max_way_length")),
 		},
 	}
 	tx, err := db.Begin()
@@ -119,7 +134,7 @@ func initUniverse() {
 }
 
 func initDB() {
-	db, err := sqlstore.Init(config.Cfg.DBPath)
+	db, err := sqlstore.Init(config.Get("db_path"))
 	if err != nil {
 		log.Fatal(err)
 	}

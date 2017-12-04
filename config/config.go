@@ -6,154 +6,120 @@ item via struct tags.
 package config
 
 import (
-	"github.com/morluque/moenawark/loglevel"
+	"fmt"
 	"github.com/pelletier/go-toml"
 	"os"
-	"reflect"
 	"strconv"
+	"sync"
 )
 
-// Config holds moenawark's configuration
-type Config struct {
-	DBPath     string       `toml:"db_path" default:"./data/db/moenawark.sqlite"`
-	HTTPListen string       `toml:"http_listen" default:"localhost:8080"`
-	APIPrefix  string       `toml:"api_prefix" default:"/api"`
-	Auth       authInfo     `toml:"auth"`
-	Universe   universeInfo `toml:"universe"`
-}
+var defaultConfigStr = `
+db_path = "./data/db/moenawark.sqlite"
+http_listen = ":8080"
+api_prefix = "/api"
 
-type authInfo struct {
-	TokenLength     int    `toml:"token_length" default:"32"`
-	TokenHeader     string `toml:"token_header" default:"X-Auth-Token"`
-	SessionDuration string `toml:"session_duration" default:"1h"`
-}
+[auth]
+token_length = 32
+token_header = "X-Auth-Token"
+session_duration = "1h"
 
-type universeInfo struct {
-	Radius             int        `toml:"radius" default:"1000"`
-	MinPlaceDist       int        `toml:"min_place_dist" default:"80"`
-	MaxWayLength       int        `toml:"max_way_length" default:"150"`
-	MarkovPrefixLength int        `toml:"markov_prefix_length" default:"3"`
-	Region             regionInfo `toml:"region"`
-}
+[loglevel]
+default = "WARN"
 
-type regionInfo struct {
-	Count        int `toml:"count" default:"5"`
-	Radius       int `toml:"radius" default:"120"`
-	MinPlaceDist int `toml:"min_place_dist" default:"20"`
-	MaxWayLength int `toml:"max_way_length" default:"40"`
-}
+
+[universe]
+radius = 1000
+min_place_dist = 80
+max_way_length = 150
+markov_prefix_length = 3
+
+[universe.region]
+count = 5
+radius = 120
+min_place_dist = 20
+max_way_length = 40
+`
 
 var (
-	// Cfg holds the global configuration used throughout Moenawark
-	Cfg Config
-	log *loglevel.Logger
+	tree        *toml.Tree
+	defaultTree *toml.Tree
+	treeLock    = sync.RWMutex{}
 )
 
 func init() {
-	log = loglevel.New("config", loglevel.Debug)
-}
-
-// LogLevel dynamically sets the log level for this package.
-func LogLevel(level loglevel.Level) {
-	log.SetLevel(level)
-}
-
-func setDefaults(conf *Config) {
-	log.Debugf("setting defaults")
-	t := reflect.TypeOf(*conf)
-
-	if len(conf.DBPath) <= 0 {
-		conf.DBPath = getDefault(t, "DBPath")
-	}
-	if len(conf.HTTPListen) <= 0 {
-		conf.HTTPListen = getDefault(t, "HTTPListen")
-	}
-	if len(conf.APIPrefix) <= 0 {
-		conf.APIPrefix = getDefault(t, "APIPrefix")
-	}
-
-	t = reflect.TypeOf(conf.Auth)
-	if conf.Auth.TokenLength == 0 {
-		conf.Auth.TokenLength = getDefaultInt(t, "TokenLength")
-	}
-	if len(conf.Auth.TokenHeader) <= 0 {
-		conf.Auth.TokenHeader = getDefault(t, "TokenHeader")
-	}
-	if len(conf.Auth.SessionDuration) <= 0 {
-		conf.Auth.SessionDuration = getDefault(t, "SessionDuration")
-	}
-
-	t = reflect.TypeOf(conf.Universe)
-	if conf.Universe.Radius == 0 {
-		conf.Universe.Radius = getDefaultInt(t, "Radius")
-	}
-	if conf.Universe.MinPlaceDist == 0 {
-		conf.Universe.MinPlaceDist = getDefaultInt(t, "MinPlaceDist")
-	}
-	if conf.Universe.MaxWayLength == 0 {
-		conf.Universe.MaxWayLength = getDefaultInt(t, "MaxWayLength")
-	}
-	if conf.Universe.MarkovPrefixLength == 0 {
-		conf.Universe.MarkovPrefixLength = getDefaultInt(t, "MarkovPrefixLength")
-	}
-
-	t = reflect.TypeOf(conf.Universe.Region)
-	if conf.Universe.Region.Count == 0 {
-		conf.Universe.Region.Count = getDefaultInt(t, "Count")
-	}
-	if conf.Universe.Region.Radius == 0 {
-		conf.Universe.Region.Radius = getDefaultInt(t, "Radius")
-	}
-	if conf.Universe.Region.MinPlaceDist == 0 {
-		conf.Universe.Region.MinPlaceDist = getDefaultInt(t, "MinPlaceDist")
-	}
-	if conf.Universe.Region.MaxWayLength == 0 {
-		conf.Universe.Region.MaxWayLength = getDefaultInt(t, "MaxWayLength")
+	if err := loadDefaultTree(); err != nil {
+		panic(err.Error())
 	}
 }
 
-func getDefault(t reflect.Type, fieldName string) string {
-	v, found := t.FieldByName(fieldName)
-	if !found {
-		log.Fatalf("Missing field %s in %v", fieldName, t)
+func toString(v interface{}) string {
+	if str, ok := v.(string); ok {
+		return str
+	} else if str, ok := v.(fmt.Stringer); ok {
+		return str.String()
+	} else if i, ok := v.(int64); ok {
+		return strconv.FormatInt(i, 10)
+	} else if v == nil {
+		return ""
 	}
-	return v.Tag.Get("default")
+	panic("unexpected toml value type")
 }
 
-func getDefaultInt(t reflect.Type, fieldName string) int {
-	x := getDefault(t, fieldName)
-	i, err := strconv.Atoi(x)
+// Get returns a config item value as a string
+func Get(key string) string {
+	treeLock.RLock()
+	defer treeLock.RUnlock()
+	if ok := tree.Has(key); !ok {
+		return toString(defaultTree.Get(key))
+	}
+	return toString(tree.Get(key))
+}
+
+// GetInt returns a config item value as an int
+func GetInt(key string) int {
+	i, err := strconv.Atoi(Get(key))
 	if err != nil {
-		log.Fatalf("default value of field %s is not an int", fieldName)
+		return 0
 	}
 	return i
 }
 
-func setDefaultsAndGlobal(conf *Config) {
-	setDefaults(conf)
-	Cfg = *conf
-}
-
-// Parse loads the TOML configuration file into a Config struct.
-func Parse(path string) (*Config, error) {
-	conf := new(Config)
-	defer setDefaultsAndGlobal(conf)
-
+// LoadFile loads a TOML configuration file
+func LoadFile(path string) error {
+	if defaultTree == nil {
+		err := loadDefaultTree()
+		if err != nil {
+			return err
+		}
+	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return conf, nil
+			return nil
 		}
-		return nil, err
+		return err
 	}
 
-	tree, err := toml.LoadFile(path)
+	t, err := toml.LoadFile(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if err = tree.Unmarshal(conf); err != nil {
-		return nil, err
+	treeLock.Lock()
+	defer treeLock.Unlock()
+	tree = t
+
+	return nil
+}
+
+func loadDefaultTree() error {
+	t, err := toml.Load(defaultConfigStr)
+	if err != nil {
+		return err
 	}
 
-	return conf, nil
+	treeLock.Lock()
+	defer treeLock.Unlock()
+	defaultTree = t
+
+	return nil
 }

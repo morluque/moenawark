@@ -68,20 +68,20 @@ func init() {
 }
 
 // LogLevel dynamically sets the log level for this package.
-func LogLevel(level loglevel.Level) {
-	log.SetLevel(level)
+func LogLevel(level string) {
+	log.SetLevelName(level)
 }
 
 func newapiServerV1() *apiServerV1 {
 	srv := new(apiServerV1)
 	srv.apiVersion = "v1"
-	srv.TokenLength = config.Cfg.Auth.TokenLength
-	srv.TokenHeader = config.Cfg.Auth.TokenHeader
-	d, err := time.ParseDuration(config.Cfg.Auth.SessionDuration)
+	srv.TokenLength = config.GetInt("auth.token_length")
+	srv.TokenHeader = config.Get("auth.token_header")
+	d, err := time.ParseDuration(config.Get("auth.session_duration"))
 	if err != nil {
 		log.Fatalf(
 			"Error in config file, could not parse SessionDuration (%s): %s",
-			config.Cfg.Auth.SessionDuration,
+			config.Get("auth.session_duration"),
 			err.Error(),
 		)
 	}
@@ -94,7 +94,7 @@ func newapiServerV1() *apiServerV1 {
 }
 
 func (srv *apiServerV1) register(prefix string, h resourceHandler) {
-	fullPrefix := fmt.Sprintf("%s/%s/%s/", config.Cfg.APIPrefix, srv.apiVersion, prefix)
+	fullPrefix := fmt.Sprintf("%s/%s/%s/", config.Get("api_prefix"), srv.apiVersion, prefix)
 	reStr := fmt.Sprintf("^%s([^/]+)?$", fullPrefix)
 	re, err := regexp.Compile(reStr)
 	if err != nil {
@@ -147,7 +147,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 // ServeHTTP starts an HTTP server for the JSON REST API
 func ServeHTTP() {
 	srv1 := newapiServerV1()
-	db, err := sqlstore.Open(config.Cfg.DBPath)
+	db, err := sqlstore.Open(config.Get("db_path"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func ServeHTTP() {
 		hmux.HandleFunc(prefix, handlerFunc)
 	}
 
-	http.ListenAndServe(config.Cfg.HTTPListen, hmux)
+	http.ListenAndServe(config.Get("http_listen"), hmux)
 }
 
 func sendError(w http.ResponseWriter, e *httpError) {

@@ -8,9 +8,11 @@ package loglevel
 
 import (
 	"fmt"
+	"github.com/morluque/moenawark/config"
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 // Level represents of log level as an unsigned integer
@@ -43,6 +45,7 @@ const (
 func New(prefix string, minLevel Level) *Logger {
 	l := log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds|log.LUTC)
 	levels := make(map[Level]string)
+	levels[Unknown] = "unknown"
 	levels[Debug] = "debug"
 	levels[Info] = "info"
 	levels[Warn] = "warn"
@@ -56,13 +59,32 @@ func New(prefix string, minLevel Level) *Logger {
 	return &Logger{logger: l, filter: filter, prefix: prefix}
 }
 
-// SetLevel dynamically sets the minimul log level
+// SetLevel dynamically sets the minimum log level
 func (l *Logger) SetLevel(level Level) {
 	l.filter.minLevel = level
 }
 
+func (l *Logger) getLevelByName(levelName string) Level {
+	lowerLevelName := strings.ToLower(levelName)
+	for level, name := range l.filter.levels {
+		if name == lowerLevelName {
+			return level
+		}
+	}
+	return Unknown
+}
+
+// SetLevelName dynamically sets the minimum log level from a string name.
+func (l *Logger) SetLevelName(levelName string) {
+	level := l.getLevelByName(levelName)
+	if level == Unknown {
+		level = l.getLevelByName(config.Get("loglevel.default"))
+	}
+	l.SetLevel(level)
+}
+
 func (l *Logger) printf(level Level, format string, v ...interface{}) {
-	if l.filter.minLevel >= level {
+	if level >= l.filter.minLevel {
 		l.logger.Printf(fmt.Sprintf("[%s] %s: %s", l.filter.levels[level], l.prefix, format), v...)
 	}
 }

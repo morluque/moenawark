@@ -32,8 +32,8 @@ func init() {
 }
 
 // LogLevel dynamically sets the log level for this package.
-func LogLevel(level loglevel.Level) {
-	log.SetLevel(level)
+func LogLevel(level string) {
+	log.SetLevelName(level)
 }
 
 func newMarkovChains(prefixLen int) *Chains {
