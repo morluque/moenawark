@@ -1,8 +1,7 @@
 /*
-Package config handles configuration of Moenawark.
-
-It allows to load a TOML configuration file and sets the defaults for
-each configuration item via struct tags.
+Package config handles configuration of Moenawark. It allows to load
+a TOML configuration file and sets the defaults for each configuration
+item via struct tags.
 */
 package config
 
