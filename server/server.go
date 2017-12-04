@@ -79,7 +79,7 @@ func newapiServerV1() *apiServerV1 {
 	srv.TokenHeader = config.Get("auth.token_header")
 	d, err := time.ParseDuration(config.Get("auth.session_duration"))
 	if err != nil {
-		log.Fatalf(
+		log.Errorf(
 			"Error in config file, could not parse SessionDuration (%s): %s",
 			config.Get("auth.session_duration"),
 			err.Error(),
