@@ -53,9 +53,9 @@ func (u *User) CheckPassword(plaintextPassword string) error {
 
 func (u *User) getCharacterID() sql.NullInt64 {
 	if u.HasCharacter() {
-		return sql.NullInt64{u.Character.ID, true}
+		return sql.NullInt64{Int64: u.Character.ID, Valid: true}
 	}
-	return sql.NullInt64{0, false}
+	return sql.NullInt64{Int64: 0, Valid: false}
 }
 
 func (u *User) create(db *sql.Tx) error {
