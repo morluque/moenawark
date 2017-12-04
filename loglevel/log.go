@@ -1,3 +1,9 @@
+/*
+Package loglevel handles level-based logging for Moenawark.
+
+It allows to define one logger per package and dynamically set the log
+level of each logger.
+*/
 package loglevel
 
 import (

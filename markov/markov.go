@@ -1,3 +1,8 @@
+/*
+Package markov implements a simple Markov Chain random name generator.
+
+It is used to generate random names for universe places.
+*/
 package markov
 
 import (

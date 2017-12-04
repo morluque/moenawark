@@ -1,3 +1,8 @@
+/*
+Package mwkerr defines a custom error type with numerical code for Moenawark.
+
+Maybe this wasn't such a good idea after all...
+*/
 package mwkerr
 
 import "fmt"

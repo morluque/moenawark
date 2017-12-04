@@ -1,3 +1,6 @@
+/*
+Package universe implements random universe generation for Moenawark.
+*/
 package universe
 
 import (

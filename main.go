@@ -1,3 +1,8 @@
+/*
+See the README for what Moenawark is.
+
+The main package implements simple subcommands to setup and start Moenawark.
+*/
 package main
 
 import (

@@ -1,3 +1,8 @@
+/*
+Package password handles passwords encryption and decryption for Moenawark.
+
+It currently uses bcrypt.
+*/
 package password
 
 import (

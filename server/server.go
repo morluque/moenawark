@@ -1,3 +1,6 @@
+/*
+Package server implements the JSON API HTTP server of Moenawark.
+*/
 package server
 
 import (

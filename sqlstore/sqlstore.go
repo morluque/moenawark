@@ -1,3 +1,6 @@
+/*
+Package sqlstore is a collection of utility functions for database handling.
+*/
 package sqlstore
 
 import (
