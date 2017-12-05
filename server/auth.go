@@ -116,7 +116,7 @@ func getAuthUser(r *http.Request) (*model.User, error) {
 }
 
 func createAuthToken() string {
-	b := make([]byte, len(config.Get("auth.token_length")))
+	b := make([]byte, config.GetInt("auth.token_length"))
 	_, err := rand.Read(b)
 	if err != nil {
 		log.Fatal(err)
