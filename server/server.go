@@ -8,12 +8,9 @@ import (
 	"fmt"
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
-	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/sqlstore"
 	"net/http"
 	"regexp"
-	"sync"
-	"time"
 )
 
 const (
@@ -44,21 +41,11 @@ type resourceHandler struct {
 	deleteMethod resourceMethodUpdate1
 }
 
-type session struct {
-	user  *model.User
-	since time.Time
-}
-
 type apiServerV1 struct {
-	TokenLength     int
-	TokenHeader     string
-	SessionDuration time.Duration
-	apiPrefix       string
-	apiVersion      string
-	sessionLock     sync.RWMutex
-	sessionList     map[string]session
-	db              *sql.DB
-	handlerFuncs    map[string]http.HandlerFunc
+	apiPrefix    string
+	apiVersion   string
+	db           *sql.DB
+	handlerFuncs map[string]http.HandlerFunc
 }
 
 var log *loglevel.Logger
@@ -76,19 +63,6 @@ func ReloadConfig() {
 func newapiServerV1() *apiServerV1 {
 	srv := new(apiServerV1)
 	srv.apiVersion = "v1"
-	srv.TokenLength = config.GetInt("auth.token_length")
-	srv.TokenHeader = config.Get("auth.token_header")
-	d, err := time.ParseDuration(config.Get("auth.session_duration"))
-	if err != nil {
-		log.Errorf(
-			"Error in config file, could not parse SessionDuration (%s): %s",
-			config.Get("auth.session_duration"),
-			err.Error(),
-		)
-	}
-	srv.SessionDuration = d
-	srv.sessionLock = sync.RWMutex{}
-	srv.sessionList = make(map[string]session)
 	srv.handlerFuncs = make(map[string]http.HandlerFunc)
 
 	return srv
@@ -116,7 +90,10 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 			return
 		}
 		// The h.*Method() will take care to commit tx if they write to w; else
-		// we assume an error occurred and we rollback any work.
+		// we assume an error occurred and we rollback any
+		// work. We ignore any error during rollback since any
+		// error would have been detected at commit time or would
+		// already have occured.
 		defer tx.Rollback()
 
 		var herr *httpError

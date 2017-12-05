@@ -12,18 +12,16 @@ import (
 	"time"
 )
 
-const (
-	// TokenLength is the length in bytes of the security token
-	TokenLength = 32
-	// TokenHeader is the name of the header used to communicate the security token
-	TokenHeader = "X-Auth-Token"
-)
-
 var (
 	sessionList     = make(map[string]session)
 	sessionLock     = sync.RWMutex{}
 	sessionDuration = time.Hour * 2
 )
+
+type session struct {
+	user  *model.User
+	since time.Time
+}
 
 func setSessionDuration() {
 	str := config.Get("auth.session_duration")
@@ -94,7 +92,7 @@ func reapSessions() {
 }
 
 func getAuthToken(r *http.Request) (*string, error) {
-	tokenHeader, ok := r.Header[TokenHeader]
+	tokenHeader, ok := r.Header[config.Get("auth.token_header")]
 	log.Debugf("tokenheader=%v", tokenHeader)
 	if !ok {
 		return nil, fmt.Errorf("missing auth header")
@@ -118,7 +116,7 @@ func getAuthUser(r *http.Request) (*model.User, error) {
 }
 
 func createAuthToken() string {
-	b := make([]byte, TokenLength)
+	b := make([]byte, len(config.Get("auth.token_length")))
 	_, err := rand.Read(b)
 	if err != nil {
 		log.Fatal(err)
@@ -144,7 +142,7 @@ func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	}
 	token := createSession(user)
 	headers := w.Header()
-	headers[TokenHeader] = []string{token}
+	headers[config.Get("auth.token_header")] = []string{token}
 	log.Infof("user %s successfully logged in", login)
 	return nil
 }
