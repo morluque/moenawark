@@ -118,10 +118,10 @@ func (u *User) Save(db *sql.Tx) error {
 func ListUsers(db *sql.Tx, first, count uint) ([]User, error) {
 	users := make([]User, count)
 	q := fmt.Sprintf(`
-	 SELECT id, login, status, game_master, character_id
-	   FROM users
-	SORT BY id
-	 LIMIT %d OFFSET %d`, count, first)
+	    SELECT id, login, status, game_master, character_id
+	      FROM users
+	  ORDER BY id
+	     LIMIT %d OFFSET %d`, count, first)
 	rows, err := db.Query(q)
 	if err != nil {
 		return users, err
