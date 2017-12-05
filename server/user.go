@@ -101,7 +101,7 @@ func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 		return appError(fmt.Errorf("Error while reading request body: %s", err.Error()))
 	}
 	body := userCreateParams{}
-	if err = json.Unmarshal(data, body); err != nil {
+	if err = json.Unmarshal(data, &body); err != nil {
 		return userError(fmt.Errorf("Error decoding JSON: %s", err.Error()))
 	}
 	if len(body.Login) <= 0 {
