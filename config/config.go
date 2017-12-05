@@ -15,6 +15,7 @@ import (
 
 var defaultConfigStr = `
 db_path = "./data/db/moenawark.sqlite"
+sql_path = "./sql"
 http_listen = ":8080"
 api_prefix = "/api"
 

@@ -7,7 +7,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/morluque/moenawark/config"
@@ -149,7 +148,7 @@ func initUniverse() {
 }
 
 func initDB() {
-	db, err := sqlstore.Init(config.Get("db_path"))
+	db, err := sqlstore.Open(config.Get("db_path"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -171,10 +170,4 @@ func initDB() {
 		log.Fatal(err)
 	}
 	log.Infof("Created admin user %s", admin.Login)
-
-	data, err := json.Marshal(admin)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("u: %s\n", data)
 }
