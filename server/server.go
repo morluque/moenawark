@@ -93,7 +93,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		// we assume an error occurred and we rollback any
 		// work. We ignore any error during rollback since any
 		// error would have been detected at commit time or would
-		// already have occured.
+		// already have occurred.
 		defer tx.Rollback()
 
 		var herr *httpError
