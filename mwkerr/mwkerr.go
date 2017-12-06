@@ -20,10 +20,6 @@ type MWKError struct {
 const (
 	// Unknown error, should not be used
 	Unknown = iota
-	// DuplicateCharacter signals that a character by this name already exists in database
-	DuplicateCharacter
-	// DuplicateUser signals that a user with this email already exists in database
-	DuplicateUser
 	// DuplicateModel signals that a model object already exists in database
 	DuplicateModel
 	// AuthError signals an Email/password mismatch
