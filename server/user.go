@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/morluque/moenawark/model"
+	"github.com/morluque/moenawark/mwkerr"
 	"io"
 	"net/http"
 	"strconv"
@@ -113,12 +114,17 @@ func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	u := model.NewUser(body.Login, body.Password1)
 	err = u.Save(db)
 	if err != nil {
+		merr, ok := err.(mwkerr.MWKError)
+		if ok && merr.Code == mwkerr.DuplicateModel {
+			return userError(err)
+		}
 		return appError(fmt.Errorf("Error while saving user %s: %s", body.Login, err.Error()))
 	}
 	err = db.Commit()
 	if err != nil {
 		return appError(fmt.Errorf("Database error: %s", err.Error()))
 	}
+	log.Infof("User %s created", u.Login)
 	responseBody, err := json.Marshal(u)
 	if err != nil {
 		return appError(fmt.Errorf("Error encoding user %s to JSON: %s", body.Login, err.Error()))
