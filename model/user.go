@@ -112,7 +112,7 @@ func (u *User) Save(db *sql.Tx) error {
 	if err != nil {
 		if sqlstore.IsConstraintError(err) {
 			log.Errorf("Constraint error: %s", err.Error())
-			return mwkerr.New(mwkerr.DuplicateCharacter, "Duplicate user with login %s", u.Login)
+			return mwkerr.New(mwkerr.DuplicateModel, "Duplicate user with login %s", u.Login)
 		}
 		return err
 	}
