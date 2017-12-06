@@ -6,6 +6,7 @@ import (
 	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/password"
 	"github.com/morluque/moenawark/sqlstore"
+	"time"
 )
 
 // User represents a user of the game.
@@ -64,13 +65,16 @@ func (u *User) create(db *sql.Tx) error {
 	if characterID.Valid && characterID.Int64 <= 0 {
 		u.Character.Save(db)
 	}
+	now := time.Now().Unix()
 	result, err := db.Exec(
-		"INSERT INTO users (login, password, status, game_master, character_id) VALUES ($1, $2, $3, $4, $5)",
+		`INSERT INTO users (login, password, status, game_master, character_id, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		u.Login,
 		u.getHashedPassword(),
 		u.Status,
 		u.GameMaster,
-		characterID)
+		characterID,
+		now)
 	if err == nil {
 		id, err := result.LastInsertId()
 		if err != nil {
@@ -107,6 +111,7 @@ func (u *User) Save(db *sql.Tx) error {
 	}
 	if err != nil {
 		if sqlstore.IsConstraintError(err) {
+			log.Errorf("Constraint error: %s", err.Error())
 			return mwkerr.New(mwkerr.DuplicateCharacter, "Duplicate user with login %s", u.Login)
 		}
 		return err
