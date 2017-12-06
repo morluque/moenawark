@@ -91,12 +91,15 @@ func (u *User) update(db *sql.Tx) error {
 		u.Character.Save(db)
 	}
 	_, err := db.Exec(
-		"UPDATE users SET login = $1, password = $2, status = $3, game_master = $4, character_id = $5",
+		`UPDATE users
+		    SET login = $1, password = $2, status = $3, game_master = $4, character_id = $5
+		  WHERE id = $6`,
 		u.Login,
 		u.getHashedPassword(),
 		u.Status,
 		u.GameMaster,
-		characterID)
+		characterID,
+		u.ID)
 	return err
 }
 
