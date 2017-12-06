@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
+	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/sqlstore"
 	"net/http"
 	"regexp"
@@ -27,6 +28,14 @@ type httpError struct {
 
 func (e *httpError) Error() string {
 	return fmt.Sprintf("%d: %s", e.Code, e.Message)
+}
+
+func (e *httpError) MarshalJSON() ([]byte, error) {
+	if err, ok := e.Err.(mwkerr.MWKError); ok {
+		return json.Marshal(err)
+	}
+	j := fmt.Sprintf(`{"error":"%s"}`, e.Err.Error())
+	return []byte(j), nil
 }
 
 type resourceMethod0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
