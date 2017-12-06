@@ -11,6 +11,17 @@ import (
 	"strconv"
 )
 
+func loadUserFromLogin(db *sql.Tx, login string) (*model.User, *httpError) {
+	u, err := model.LoadUser(db, login)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFoundError()
+		}
+		return nil, appError(err)
+	}
+	return u, nil
+}
+
 func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
 	user, err := getAuthUser(r)
 	if err != nil {
@@ -19,12 +30,9 @@ func userGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *
 	if user.Login != login && !user.GameMaster {
 		return authError(fmt.Errorf("can only get info about yourself"))
 	}
-	u, err := model.LoadUser(db, login)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return notFoundError()
-		}
-		return appError(err)
+	u, herr := loadUserFromLogin(db, login)
+	if herr != nil {
+		return herr
 	}
 	userJSON, err := json.Marshal(u)
 	if err != nil {
@@ -83,6 +91,21 @@ func userList(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	return nil
 }
 
+func readBodyData(r *http.Request) ([]byte, *httpError) {
+	if r.ContentLength <= 0 {
+		return nil, userError(fmt.Errorf("Empty request body"))
+	}
+	if r.ContentLength > MaxBodyLength {
+		return nil, userError(fmt.Errorf("Request body too long, max length is %d", MaxBodyLength))
+	}
+	data := make([]byte, r.ContentLength)
+	_, err := io.ReadFull(r.Body, data)
+	if err != nil {
+		return nil, appError(fmt.Errorf("Error while reading request body: %s", err.Error()))
+	}
+	return data, nil
+}
+
 type userCreateParams struct {
 	Login     string `json:"login"`
 	Password1 string `json:"password1"`
@@ -90,19 +113,13 @@ type userCreateParams struct {
 }
 
 func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
-	if r.ContentLength <= 0 {
-		return userError(fmt.Errorf("Empty request body"))
+	data, herr := readBodyData(r)
+	if herr != nil {
+		return herr
 	}
-	if r.ContentLength > MaxBodyLength {
-		return userError(fmt.Errorf("Request body too long, max length is %d", MaxBodyLength))
-	}
-	data := make([]byte, r.ContentLength)
-	_, err := io.ReadFull(r.Body, data)
-	if err != nil {
-		return appError(fmt.Errorf("Error while reading request body: %s", err.Error()))
-	}
+
 	body := userCreateParams{}
-	if err = json.Unmarshal(data, &body); err != nil {
+	if err := json.Unmarshal(data, &body); err != nil {
 		return userError(fmt.Errorf("Error decoding JSON: %s", err.Error()))
 	}
 	if len(body.Login) <= 0 {
@@ -111,8 +128,9 @@ func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	if body.Password1 != body.Password2 {
 		return userError(fmt.Errorf("Passwords don't match"))
 	}
+
 	u := model.NewUser(body.Login, body.Password1)
-	err = u.Save(db)
+	err := u.Save(db)
 	if err != nil {
 		merr, ok := err.(mwkerr.MWKError)
 		if ok && merr.Code == mwkerr.DuplicateModel {
@@ -134,8 +152,65 @@ func userCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	return nil
 }
 
+type userUpdateParams struct {
+	Password1  string
+	Password2  string
+	Status     string
+	GameMaster bool
+}
+
 func userUpdate(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
-	return unknownMethodError(r.Method)
+	user, err := getAuthUser(r)
+	if err != nil {
+		return authError(err)
+	}
+	if user.Login != login && !user.GameMaster {
+		return authError(fmt.Errorf("can only modify yourself"))
+	}
+
+	u, herr := loadUserFromLogin(db, login)
+	if herr != nil {
+		return herr
+	}
+
+	data, herr := readBodyData(r)
+	if herr != nil {
+		return herr
+	}
+
+	nu := userUpdateParams{}
+	if err = json.Unmarshal(data, &nu); err != nil {
+		return userError(fmt.Errorf("Error decoding JSON: %s", err.Error()))
+	}
+
+	if user.Login == login {
+		if nu.Password1 != nu.Password2 {
+			return userError(fmt.Errorf("Passwords don't match"))
+		}
+		u.SetPassword(nu.Password1)
+	} else {
+		if nu.Status == "new" || nu.Status == "active" || nu.Status == "archived" {
+			u.Status = nu.Status
+		} else {
+			return userError(fmt.Errorf("Bad user status %s, expected new, active or archived", nu.Status))
+		}
+		u.GameMaster = nu.GameMaster
+	}
+
+	err = u.Save(db)
+	if err != nil {
+		return appError(fmt.Errorf("Error saving user %s: %s", login, err.Error()))
+	}
+
+	userJSON, err := json.Marshal(u)
+	if err != nil {
+		return appError(err)
+	}
+	headers := w.Header()
+	headers.Add("Content-Type", "application/json")
+	fmt.Fprint(w, string(userJSON))
+
+	return nil
 }
 
 func userDelete(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
