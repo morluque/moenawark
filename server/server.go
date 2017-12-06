@@ -115,7 +115,6 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		}
 		if herr != nil {
 			// We are responsible to send the HTTP error to the client
-			log.Infof("http error %d %s", herr.Code, herr.Message)
 			sendError(w, herr)
 			return
 		}
@@ -152,12 +151,12 @@ func notFoundError() *httpError {
 }
 
 func appError(err error) *httpError {
-	log.Errorf("%s", err.Error())
+	log.Errorf(err.Error())
 	return &httpError{Code: 500, Message: "Internal server error", Err: err}
 }
 
 func userError(err error) *httpError {
-	log.Infof("%s", err.Error())
+	log.Infof(err.Error())
 	return &httpError{Code: 400, Message: "Bad request", Err: err}
 }
 
