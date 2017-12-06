@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 )
 
@@ -91,12 +90,6 @@ func getSchemaVersion(db *sql.DB) (int, error) {
 	return v, nil
 }
 
-type sortByMapValues map[int]string
-
-func (m sortByMapValues) Len() int           { return len(m) }
-func (m sortByMapValues) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-func (m sortByMapValues) Less(i, j int) bool { return i < j }
-
 func getVersionsToDeploy(currentVersion int) ([]string, int, error) {
 	sqlDir := config.Get("sql_path")
 	sqlPath, err := os.Open(sqlDir)
@@ -113,6 +106,7 @@ func getVersionsToDeploy(currentVersion int) ([]string, int, error) {
 	if err != nil {
 		panic("WTFBBQ!!!11! bad regexp for matching SQL files.")
 	}
+	last := 0
 	for _, f := range files {
 		matches := re.FindStringSubmatch(f)
 		if matches == nil {
@@ -122,21 +116,25 @@ func getVersionsToDeploy(currentVersion int) ([]string, int, error) {
 		if err != nil {
 			panic("WTFBBQ!!!11! can't convert sql version str to int")
 		}
+		if last < v {
+			last = v
+		}
 		sqlFiles[v] = f
 		log.Debugf("Found SQL file %s for version %d", f, v)
 	}
 	log.Debugf("Found %d SQL file(s)", len(sqlFiles))
-	sort.Sort(sortByMapValues(sqlFiles))
 
 	sqlToExec := make([]string, 0)
-	last := 0
-	for v, f := range sqlFiles {
-		last = v
-		if v <= currentVersion {
-			continue
-		}
-		sqlToExec = append(sqlToExec, filepath.Join(sqlDir, f))
+	if currentVersion >= last {
+		return sqlToExec, last, nil
 	}
+
+	for i := currentVersion + 1; i <= last; i++ {
+		sqlToExec = append(sqlToExec, filepath.Join(sqlDir, sqlFiles[i]))
+	}
+
+	log.Debugf("Ordered SQL files to exec: %v", sqlToExec)
+	log.Debugf("last version is %d", last)
 
 	return sqlToExec, last, nil
 }
