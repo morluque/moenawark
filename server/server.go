@@ -19,13 +19,13 @@ const (
 )
 
 type httpError struct {
-	code    int
-	message string
-	err     error
+	Code    int
+	Message string
+	Err     error
 }
 
 func (e *httpError) Error() string {
-	return fmt.Sprintf("%d: %s", e.code, e.message)
+	return fmt.Sprintf("%d: %s", e.Code, e.Message)
 }
 
 type resourceMethod0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
@@ -115,7 +115,7 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		}
 		if herr != nil {
 			// We are responsible to send the HTTP error to the client
-			log.Infof("http error %d %s", herr.code, herr.message)
+			log.Infof("http error %d %s", herr.Code, herr.Message)
 			sendError(w, herr)
 			return
 		}
@@ -144,28 +144,28 @@ func ServeHTTP() {
 }
 
 func sendError(w http.ResponseWriter, e *httpError) {
-	http.Error(w, e.message, e.code)
+	http.Error(w, e.Message, e.Code)
 }
 
 func notFoundError() *httpError {
-	return &httpError{code: 404, message: "Resource not found"}
+	return &httpError{Code: 404, Message: "Resource not found"}
 }
 
 func appError(err error) *httpError {
 	log.Errorf("%s", err.Error())
-	return &httpError{code: 500, message: "Internal server error"}
+	return &httpError{Code: 500, Message: "Internal server error", Err: err}
 }
 
 func userError(err error) *httpError {
 	log.Infof("%s", err.Error())
-	return &httpError{code: 400, message: "Bad request"}
+	return &httpError{Code: 400, Message: "Bad request", Err: err}
 }
 
 func authError(err error) *httpError {
 	log.Warnf("auth error: %s", err.Error())
-	return &httpError{code: 403, message: "Forbidden"}
+	return &httpError{Code: 403, Message: "Forbidden", Err: err}
 }
 
 func unknownMethodError(method string) *httpError {
-	return &httpError{code: 405, message: fmt.Sprintf("Method not allowed: %s", method)}
+	return &httpError{Code: 405, Message: fmt.Sprintf("Method not allowed: %s", method)}
 }
