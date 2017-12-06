@@ -62,13 +62,13 @@ CREATE TABLE resources (
 );
 
 CREATE TABLE resource_components (
-	resource_id INTEGER NOT NULL CONSTRAINT fk_res_comp_res REFERENCES resources(id),
+	resource_id INTEGER NOT NULL CONSTRAINT fk_res_comp_res REFERENCES resources(object_id),
 	matter_id INTEGER NOT NULL CONSTRAINT fk_res_comp_matter REFERENCES matters(id),
 	CONSTRAINT pk_res_comp PRIMARY KEY (resource_id, matter_id)
 );
 
 CREATE TABLE constructions (
-	resource_id INTEGER UNIQUE NOT NULL CONSTRAINT fk_constr_res REFERENCES resources(id),
+	resource_id INTEGER UNIQUE NOT NULL CONSTRAINT fk_constr_res REFERENCES resources(object_id),
 	group_count INTEGER NOT NULL DEFAULT 1,
 	name TEXT NOT NULL,
 	attack INTEGER NOT NULL DEFAULT 0,
@@ -81,19 +81,19 @@ CREATE TABLE constructions (
 );
 
 CREATE TABLE construction_freight (
-	construction_id INTEGER NOT NULL CONSTRAINT fk_constr_freight_constr REFERENCES constructions(id),
+	construction_id INTEGER NOT NULL CONSTRAINT fk_constr_freight_constr REFERENCES constructions(resource_id),
 	object_id INTEGER NOT NULL CONSTRAINT fk_constr_freight_obj REFERENCES objects(id),
 	CONSTRAINT pk_constr_freight PRIMARY KEY (construction_id, object_id)
 );
 
 CREATE TABLE construction_biocompatibility (
-	construction_id INTEGER NOT NULL CONSTRAINT fk_constr_bioc_constr REFERENCES constructions(id),
+	construction_id INTEGER NOT NULL CONSTRAINT fk_constr_bioc_constr REFERENCES constructions(resource_id),
 	matter_id INTEGER NOT NULL CONSTRAINT fk_constr_bioc_matter REFERENCES matters(id),
 	CONSTRAINT pk_constr_bioc PRIMARY KEY (construction_id, matter_id)
 );
 
 CREATE TABLE entities (
-	resource_id INTEGER NOT NULL CONSTRAINT fk_ent_res REFERENCES resources(id),
+	resource_id INTEGER NOT NULL CONSTRAINT fk_ent_res REFERENCES resources(object_id),
 	character_id INTEGER DEFAULT NULL CONSTRAINT fk_ent_char REFERENCES characters(id),
 	group_count INTEGER NOT NULL DEFAULT 1,
 	name TEXT NOT NULL,
@@ -117,7 +117,7 @@ CREATE TABLE knowledge_constraints (
 );
 
 CREATE TABLE knowledges (
-	entity_id INTEGER NOT NULL CONSTRAINT fk_knwl_ent REFERENCES entities(id),
+	entity_id INTEGER NOT NULL CONSTRAINT fk_knwl_ent REFERENCES entities(resource_id),
 	knowledge_domain_id INTEGER NOT NULL CONSTRAINT fk_knwl_dom REFERENCES knowledge_domains(id),
 	proficiency INTEGER NOT NULL
 );
@@ -137,3 +137,5 @@ CREATE TABLE orders (
 	order_type TEXT NOT NULL,
 	json_args TEXT NOT NULL
 );
+
+PRAGMA foreign_key_check;
