@@ -5,6 +5,7 @@ package server
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/morluque/moenawark/config"
 	"github.com/morluque/moenawark/loglevel"
@@ -143,6 +144,20 @@ func ServeHTTP() {
 }
 
 func sendError(w http.ResponseWriter, e *httpError) {
+	if e.Err == nil {
+		e.Err = fmt.Errorf(e.Message)
+	}
+	errJSON, err := json.Marshal(e)
+	if err != nil {
+		log.Errorf("Could not serialize error to JSON: %s", err.Error())
+		log.Errorf("Original error: %s", e.Error())
+		http.Error(w, "Could not serialize error to JSON", 500)
+		return
+	}
+	headers := w.Header()
+	headers.Add("Content-Type", "application/json")
+	fmt.Fprint(w, string(errJSON))
+
 	http.Error(w, e.Message, e.Code)
 }
 
