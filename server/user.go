@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/morluque/moenawark/model"
 	"github.com/morluque/moenawark/mwkerr"
+	"github.com/morluque/moenawark/server/session"
 	"io"
 	"net/http"
 	"strconv"
@@ -23,7 +24,7 @@ func (h UserHandler) SetResourceMapper(m *resourceMapper) {
 
 // View sends JSON of a user in response to HTTP GET
 func (h UserHandler) View(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
-	user, err := getAuthUser(r)
+	user, err := session.User(r)
 	if err != nil {
 		return authError(err)
 	}
@@ -47,7 +48,7 @@ func (h UserHandler) View(db *sql.Tx, w http.ResponseWriter, r *http.Request, lo
 
 // List sends JSON of a list of users on HTTP GET
 func (h UserHandler) List(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
-	user, err := getAuthUser(r)
+	user, err := session.User(r)
 	if err != nil {
 		return authError(err)
 	}
@@ -126,7 +127,7 @@ func (h UserHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, 
 		GameMaster bool
 	}
 
-	user, err := getAuthUser(r)
+	user, err := session.User(r)
 	if err != nil {
 		return authError(err)
 	}

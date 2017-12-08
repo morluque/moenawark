@@ -86,7 +86,6 @@ func init() {
 // ReloadConfig performs required actions to reload all dynamic config.
 func ReloadConfig() {
 	log.SetLevelName(config.Get("loglevel.server"))
-	setSessionDuration()
 }
 
 func newAPIServerV1(db *sql.DB) *apiServerV1 {

@@ -16,6 +16,7 @@ import (
 	"github.com/morluque/moenawark/mwkerr"
 	"github.com/morluque/moenawark/password"
 	"github.com/morluque/moenawark/server"
+	"github.com/morluque/moenawark/server/session"
 	"github.com/morluque/moenawark/sqlstore"
 	"github.com/morluque/moenawark/universe"
 	"os"
@@ -54,6 +55,7 @@ func reloadConfig(path string) {
 	}
 	log.SetLevelName(config.Get("loglevel.main"))
 	server.ReloadConfig()
+	session.ReloadConfig()
 	markov.ReloadConfig()
 	model.ReloadConfig()
 	mwkerr.ReloadConfig()
