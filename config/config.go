@@ -17,6 +17,7 @@ var defaultConfigStr = `
 db_path = "./data/db/moenawark.sqlite"
 sql_path = "./sql"
 http_listen = ":8080"
+base_uri = "http://localhost:8080"
 api_prefix = "/api"
 
 [auth]

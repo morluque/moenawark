@@ -124,16 +124,29 @@ func createAuthToken() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-func authGet(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
+// AuthHandler is a resource handler for user authentication.
+type AuthHandler struct {
+	*resourceMapper
+}
+
+// SetResourceMapper sets the resourceMapper that can be used to create URLs to arbitrary resources.
+func (h AuthHandler) SetResourceMapper(m *resourceMapper) {
+	h.resourceMapper = m
+}
+
+// View handles HTTP GET on an authenticated session (unimplemented).
+func (h AuthHandler) View(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
 	log.Debugf("authGet got called")
 	return unknownMethodError(r.Method)
 }
 
-func authList(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
+// List handles HTTP GET on a collection of authenticated sessions (unimplemented).
+func (h AuthHandler) List(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	return unknownMethodError(r.Method)
 }
 
-func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
+// Create verifies user credentials on HTTP POST and returns a security token.
+func (h AuthHandler) Create(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	login := r.PostFormValue("login")
 	password := r.PostFormValue("password")
 	user, err := model.AuthUser(db, login, password)
@@ -147,25 +160,17 @@ func authCreate(db *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError {
 	return nil
 }
 
-func authUpdate(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
+// Update handles HTTP PUT on an authenticated session (unimplemented).
+func (h AuthHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
 	return unknownMethodError(r.Method)
 }
 
-func authDelete(db *sql.Tx, w http.ResponseWriter, r *http.Request, unused string) *httpError {
+// Delete logs out a user, forgetting about it's authentication token.
+func (h AuthHandler) Delete(db *sql.Tx, w http.ResponseWriter, r *http.Request, unused string) *httpError {
 	token, err := getAuthToken(r)
 	if err != nil {
 		return authError(err)
 	}
 	deleteSession(*token)
 	return nil
-}
-
-func newAuthHandler() resourceHandler {
-	return resourceHandler{
-		getMethod:    authGet,
-		listMethod:   authList,
-		putMethod:    authUpdate,
-		postMethod:   authCreate,
-		deleteMethod: authDelete,
-	}
 }

@@ -38,24 +38,43 @@ func (e *httpError) MarshalJSON() ([]byte, error) {
 	return []byte(j), nil
 }
 
-type resourceMethod0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
-type resourceMethod1 func(*sql.Tx, http.ResponseWriter, *http.Request, string) *httpError
-type resourceMethodUpdate0 func(*sql.Tx, http.ResponseWriter, *http.Request) *httpError
-type resourceMethodUpdate1 func(*sql.Tx, http.ResponseWriter, *http.Request, string) *httpError
+type resourceHandler interface {
+	List(tx *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError
+	View(tx *sql.Tx, w http.ResponseWriter, r *http.Request, id string) *httpError
+	Create(tx *sql.Tx, w http.ResponseWriter, r *http.Request) *httpError
+	Update(tx *sql.Tx, w http.ResponseWriter, r *http.Request, id string) *httpError
+	Delete(tx *sql.Tx, w http.ResponseWriter, r *http.Request, id string) *httpError
+	URLTo(resourceName string, resourceID int) string
+	SetResourceMapper(m *resourceMapper)
+}
 
-type resourceHandler struct {
-	listMethod   resourceMethod0
-	postMethod   resourceMethodUpdate0
-	getMethod    resourceMethod1
-	putMethod    resourceMethodUpdate1
-	deleteMethod resourceMethodUpdate1
+type resourceMapper struct {
+	baseURL  string
+	prefixes map[string]string
+}
+
+func newResourceMapper(baseURL string, prefixes map[string]string) *resourceMapper {
+	return &resourceMapper{
+		baseURL:  baseURL,
+		prefixes: prefixes,
+	}
+}
+
+func (m *resourceMapper) URLTo(name string, id int) string {
+	prefix, ok := m.prefixes[name]
+	if !ok {
+		prefix = "thisisabug"
+	}
+	return fmt.Sprintf("%s/%s/%d", m.baseURL, prefix, id)
 }
 
 type apiServerV1 struct {
-	apiPrefix    string
-	apiVersion   string
-	db           *sql.DB
-	handlerFuncs map[string]http.HandlerFunc
+	baseURL     string
+	apiPrefix   string
+	apiVersion  string
+	db          *sql.DB
+	resourceMap map[string]string
+	resources   map[string]resourceHandler
 }
 
 var log *loglevel.Logger
@@ -70,23 +89,40 @@ func ReloadConfig() {
 	setSessionDuration()
 }
 
-func newapiServerV1() *apiServerV1 {
-	srv := new(apiServerV1)
-	srv.apiVersion = "v1"
-	srv.handlerFuncs = make(map[string]http.HandlerFunc)
-
-	return srv
+func newAPIServerV1(db *sql.DB) *apiServerV1 {
+	srv := apiServerV1{
+		apiPrefix:   config.Get("api_prefix"),
+		apiVersion:  "v1",
+		db:          db,
+		resourceMap: make(map[string]string),
+		resources:   make(map[string]resourceHandler),
+	}
+	srv.baseURL = fmt.Sprintf("%s%s/%s", config.Get("base_url"), srv.apiPrefix, srv.apiVersion)
+	return &srv
 }
 
-func (srv *apiServerV1) register(prefix string, h resourceHandler) {
-	fullPrefix := fmt.Sprintf("%s/%s/%s/", config.Get("api_prefix"), srv.apiVersion, prefix)
-	reStr := fmt.Sprintf("^%s([^/]+)?$", fullPrefix)
+func (srv *apiServerV1) ServeMux() *http.ServeMux {
+	hmux := http.NewServeMux()
+	for name, handler := range srv.resources {
+		prefix := fmt.Sprintf("%s/%s/%s/", srv.apiPrefix, srv.apiVersion, srv.resourceMap[name])
+		hmux.HandleFunc(prefix, srv.handlerFuncFor(handler, name, prefix))
+		log.Debugf("registered handlerfunc for prefix %s", prefix)
+	}
+
+	return hmux
+}
+
+func (srv *apiServerV1) handlerFuncFor(h resourceHandler, resourceName, prefix string) http.HandlerFunc {
+	h.SetResourceMapper(newResourceMapper(srv.baseURL, srv.resourceMap))
+
+	log.Debugf("making handlerfunc for prefix %s", prefix)
+	reStr := fmt.Sprintf("^%s([^/]+)?$", prefix)
 	re, err := regexp.Compile(reStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	srv.handlerFuncs[fullPrefix] = func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		subMatches := re.FindStringSubmatch(r.URL.Path)
 		if subMatches == nil {
 			http.NotFound(w, r)
@@ -110,16 +146,16 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 		switch r.Method {
 		case http.MethodGet:
 			if len(subMatches[1]) == 0 {
-				herr = h.listMethod(tx, w, r)
+				herr = h.List(tx, w, r)
 			} else {
-				herr = h.getMethod(tx, w, r, subMatches[1])
+				herr = h.View(tx, w, r, subMatches[1])
 			}
 		case http.MethodPost:
-			herr = h.postMethod(tx, w, r)
+			herr = h.Create(tx, w, r)
 		case http.MethodPut:
-			herr = h.putMethod(tx, w, r, subMatches[1])
+			herr = h.Update(tx, w, r, subMatches[1])
 		case http.MethodDelete:
-			herr = h.deleteMethod(tx, w, r, subMatches[1])
+			herr = h.Delete(tx, w, r, subMatches[1])
 		default:
 			herr = unknownMethodError(r.Method)
 		}
@@ -131,25 +167,24 @@ func (srv *apiServerV1) register(prefix string, h resourceHandler) {
 	}
 }
 
+func (srv *apiServerV1) register(resourceName, prefix string, h resourceHandler) {
+	srv.resourceMap[resourceName] = prefix
+	srv.resources[resourceName] = h
+}
+
 // ServeHTTP starts an HTTP server for the JSON REST API
 func ServeHTTP() {
-	srv1 := newapiServerV1()
 	db, err := sqlstore.Open(config.Get("db_path"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	srv1.db = db
 
-	srv1.register("user", newUserHandler())
-	srv1.register("auth", newAuthHandler())
+	srv1 := newAPIServerV1(db)
+	srv1.register("user", "user", UserHandler{})
+	srv1.register("auth", "auth", AuthHandler{})
 
-	hmux := http.NewServeMux()
-	for prefix, handlerFunc := range srv1.handlerFuncs {
-		hmux.HandleFunc(prefix, handlerFunc)
-	}
-
-	http.ListenAndServe(config.Get("http_listen"), hmux)
+	http.ListenAndServe(config.Get("http_listen"), srv1.ServeMux())
 }
 
 func sendError(w http.ResponseWriter, e *httpError) {
