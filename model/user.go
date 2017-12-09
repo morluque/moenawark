@@ -122,6 +122,16 @@ func (u *User) Save(db *sql.Tx) error {
 	return nil
 }
 
+// Delete will remove user from database if it's status is "new".
+func (u *User) Delete(db *sql.Tx) error {
+	if u.Status != "new" {
+		log.Warnf("User %s was active, can't delete now.", u.Login)
+		return fmt.Errorf("Can only delete inactive users, but %s is %s", u.Login, u.Status)
+	}
+	_, err := db.Exec("DELETE FROM users WHERE id = $1", u.ID)
+	return err
+}
+
 // ListUsers loads a list of users from database with pagination.
 func ListUsers(db *sql.Tx, first, count uint) ([]User, error) {
 	users := make([]User, count)

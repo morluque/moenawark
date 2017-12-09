@@ -182,6 +182,7 @@ func ServeHTTP() {
 	srv1 := newAPIServerV1(db)
 	srv1.register("user", "user", UserHandler{})
 	srv1.register("auth", "auth", AuthHandler{})
+	srv1.register("character", "character", CharacterHandler{})
 
 	http.ListenAndServe(config.Get("http_listen"), srv1.ServeMux())
 }
@@ -197,11 +198,9 @@ func sendError(w http.ResponseWriter, e *httpError) {
 		http.Error(w, "Could not serialize error to JSON", 500)
 		return
 	}
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(e.Code)
 	fmt.Fprint(w, string(errJSON))
-
-	http.Error(w, e.Message, e.Code)
 }
 
 func notFoundError() *httpError {

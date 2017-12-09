@@ -121,10 +121,10 @@ func (h UserHandler) Create(db *sql.Tx, w http.ResponseWriter, r *http.Request) 
 // Update checks user-supplied JSON and updates a user
 func (h UserHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
 	type userUpdateParams struct {
-		Password1  string
-		Password2  string
-		Status     string
-		GameMaster bool
+		Password1  string `json:"password1"`
+		Password2  string `json:"password2"`
+		Status     string `json:"status"`
+		GameMaster bool   `json:"game_master"`
 	}
 
 	user, err := session.User(r)
@@ -156,10 +156,18 @@ func (h UserHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, 
 		}
 		u.SetPassword(nu.Password1)
 	} else {
-		if nu.Status == "new" || nu.Status == "active" || nu.Status == "archived" {
+		switch nu.Status {
+		case "":
+			// Zero-value, ignore.
+		case "active":
 			u.Status = nu.Status
-		} else {
-			return userError(fmt.Errorf("Bad user status %s, expected new, active or archived", nu.Status))
+		case "archived":
+			if u.Status == "new" {
+				return userError(fmt.Errorf("Can only archive active users"))
+			}
+			u.Status = nu.Status
+		default:
+			return userError(fmt.Errorf("Bad user status %s, expected active or archived", nu.Status))
 		}
 		u.GameMaster = nu.GameMaster
 	}
@@ -167,6 +175,10 @@ func (h UserHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, 
 	err = u.Save(db)
 	if err != nil {
 		return appError(fmt.Errorf("Error saving user %s: %s", login, err.Error()))
+	}
+	err = db.Commit()
+	if err != nil {
+		return appError(err)
 	}
 
 	userJSON, err := json.Marshal(u)
@@ -183,7 +195,29 @@ func (h UserHandler) Update(db *sql.Tx, w http.ResponseWriter, r *http.Request, 
 // Delete would delete a user from database, but is unimplemented.
 // TODO: implement for new users (users that never were active).
 func (h UserHandler) Delete(db *sql.Tx, w http.ResponseWriter, r *http.Request, login string) *httpError {
-	return unknownMethodError(r.Method)
+	user, err := session.User(r)
+	if err != nil {
+		return authError(err)
+	}
+	if !user.GameMaster {
+		return authError(fmt.Errorf("Only game masters can delete inactive users"))
+	}
+
+	u, herr := h.loadUserFromLogin(db, login)
+	if herr != nil {
+		return herr
+	}
+
+	if err := u.Delete(db); err != nil {
+		return userError(err)
+	}
+	err = db.Commit()
+	if err != nil {
+		return appError(err)
+	}
+	log.Infof("User %s deleted.", u.Login)
+
+	return nil
 }
 
 func (h UserHandler) loadUserFromLogin(db *sql.Tx, login string) (*model.User, *httpError) {
